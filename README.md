@@ -3,7 +3,7 @@
 A **single-file web app** for managing English vocabulary with **blocks, deadlines, and spaced repetition (SRS)**.  
 Built with **HTML + TailwindCSS + Vanilla JS**, no backend required — everything runs in the browser.
 
-👉 [Live Demo (GitHub Pages)](https://<your-username>.github.io/vocab-srs-manager/)  
+👉 [Live Demo (GitHub Pages)](https://rRoyal1504.github.io/Memorize/)  
 
 ---
 
@@ -55,7 +55,7 @@ Built with **HTML + TailwindCSS + Vanilla JS**, no backend required — everythi
 ## 📦 Deployment
 - Push to GitHub.  
 - Enable **GitHub Pages** → Branch `main`, root folder `/`.  
-- Access at:
+- Access at: https://rRoyal1504.github.io/Memorize/
 
 ---
 
