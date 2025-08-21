@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vocab SRS Manager</title>
+  <meta name="description" content="Single-file vocabulary manager with projects, blocks, deadlines, and spaced repetition (SRS)." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#8b5cf6', // violet-500
+            secondary: '#ec4899', // pink-500
+            bg1: '#0f1226',
+            bg2: '#0b0f20',
+            panel: 'rgba(255,255,255,0.06)',
+            borderc: 'rgba(255,255,255,0.14)',
+            text: '#eef1ff',
+            textdim: '#c9cbe8'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Minimal custom CSS for card flip */
+    .flip {
+      perspective: 1000px;
+    }
+    .flip-inner {
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform .5s ease;
+      min-height: 220px;
+    }
+    .flipped .flip-inner { transform: rotateY(180deg); }
+    .flip-front, .flip-back {
+      position: absolute; inset: 0; backface-visibility: hidden;
+    }
+    .flip-back { transform: rotateY(180deg); }
+
+    /* Hide scrollbar for nicer panels */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* Focus ring */
+    .focus-ring:focus { outline: 2px solid #8b5cf6; outline-offset: 2px; }
+  </style>
+</head>
+<body class="min-h-screen bg-bg1 text-text antialiased">
+  <!-- HEADER -->
+  <header class="sticky top-0 z-30 backdrop-blur supports-[backdrop-filter]:bg-bg1/60 border-b border-borderc">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-secondary"></div>
+        <h1 class="text-lg sm:text-xl font-semibold">Vocab SRS Manager</h1>
+      </div>
+      <div class="ml-auto flex items-center gap-3">
+        <button id="btnNewProjectHeader" class="focus-ring px-3 py-1.5 rounded-xl bg-primary/20 hover:bg-primary/30 border border-borderc text-sm" aria-label="Create new project">+ New Project</button>
+      </div>
+    </div>
+    <!-- Deadline Pressure Bar -->
+    <div class="w-full h-1.5">
+      <div id="deadlineBar" class="h-full bg-gradient-to-r from-green-500 via-yellow-400 to-red-500 transition-all" style="width:0%"></div>
+    </div>
+    <!-- NAV -->
+    <nav class="max-w-6xl mx-auto px-4 py-2 flex gap-2 text-sm">
+      <button data-nav="dashboard" class="navtab focus-ring px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-borderc">Dashboard</button>
+      <button data-nav="today" class="navtab focus-ring px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-borderc">Today</button>
+      <button data-nav="project" class="navtab focus-ring px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-borderc hidden">Project</button>
+      <button data-nav="flashcards" class="navtab focus-ring px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-borderc">Flashcards</button>
+      <button data-nav="settings" class="navtab focus-ring px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-borderc">Settings</button>
+    </nav>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-6xl mx-auto px-4 py-6 space-y-8">
+
+    <!-- DASHBOARD VIEW -->
+    <section id="view-dashboard" class="space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-semibold">Dashboard</h2>
+        <div class="flex gap-2">
+          <button class="focus-ring px-3 py-1.5 rounded-xl bg-primary/20 hover:bg-primary/30 border border-borderc text-sm" id="btnNewProjectDash">+ Create Project</button>
+          <button class="focus-ring px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm" id="btnExportAll">Export All (JSON)</button>
+          <button class="focus-ring px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm" id="btnImportAll">Import</button>
+        </div>
+      </div>
+      <div id="dashboardProjects" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      <div id="emptyDash" class="hidden text-textdim text-sm">No projects yet. Click <b>+ Create Project</b> to start.</div>
+    </section>
+
+    <!-- TODAY VIEW -->
+    <section id="view-today" class="space-y-6 hidden">
+      <h2 class="text-xl font-semibold">Today</h2>
+      <div class="grid md:grid-cols-2 gap-6">
+        <div class="rounded-2xl border border-borderc bg-panel p-4">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-semibold">Learn Today (New Blocks)</h3>
+            <div id="todayLearnCount" class="text-xs text-textdim"></div>
+          </div>
+          <div id="todayLearnList" class="space-y-3"></div>
+          <div id="todayLearnEmpty" class="text-sm text-textdim">No new blocks scheduled for today.</div>
+        </div>
+        <div class="rounded-2xl border border-borderc bg-panel p-4">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-semibold">Review Today (SRS Due)</h3>
+            <div id="todayReviewCount" class="text-xs text-textdim"></div>
+          </div>
+          <div id="todayReviewList" class="space-y-3"></div>
+          <div id="todayReviewEmpty" class="text-sm text-textdim">No reviews due today.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROJECT DETAIL VIEW -->
+    <section id="view-project" class="space-y-6 hidden">
+      <div class="flex items-center gap-3">
+        <button id="backToDashboard" class="focus-ring px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm">← Back</button>
+        <h2 id="projTitle" class="text-xl font-semibold">Project</h2>
+        <span id="projDeadlineBadge" class="ml-auto text-xs px-2 py-1 rounded bg-white/10 border border-borderc"></span>
+      </div>
+
+      <div class="grid lg:grid-cols-3 gap-6">
+        <!-- Left: Meta & Controls -->
+        <div class="rounded-2xl border border-borderc bg-panel p-4 space-y-4">
+          <div class="space-y-1">
+            <div class="text-sm text-textdim">Project Title</div>
+            <input id="projTitleInput" class="w-full bg-white/5 border border-borderc rounded-xl px-3 py-2 focus-ring" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <div class="text-sm text-textdim">Deadline</div>
+              <input id="projDeadlineInput" type="date" class="w-full bg-white/5 border border-borderc rounded-xl px-3 py-2 focus-ring" />
+            </div>
+            <div>
+              <div class="text-sm text-textdim">Block size</div>
+              <input id="projBlockSize" type="number" min="8" max="20" class="w-full bg-white/5 border border-borderc rounded-xl px-3 py-2 focus-ring" />
+            </div>
+          </div>
+          <div>
+            <div class="text-sm text-textdim">SRS Intervals (days, comma-separated)</div>
+            <input id="projSRS" class="w-full bg-white/5 border border-borderc rounded-xl px-3 py-2 focus-ring" />
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button id="btnProjSave" class="focus-ring px-3 py-1.5 rounded-xl bg-primary/20 hover:bg-primary/30 border border-borderc text-sm">Save</button>
+            <button id="btnAddWords" class="focus-ring px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm">Add Words</button>
+            <button id="btnAutoSplit" class="focus-ring px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm">Auto Split / Rebuild</button>
+            <button id="btnReschedule" class="focus-ring px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm">Re-schedule</button>
+            <button id="btnExportProject" class="focus-ring px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm">Export JSON</button>
+            <button id="btnDeleteProject" class="focus-ring px-3 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-borderc text-sm">Delete</button>
+          </div>
+          <div class="text-sm text-textdim" id="projStats"></div>
+        </div>
+
+        <!-- Right: Blocks & Words -->
+        <div class="lg:col-span-2 space-y-6">
+          <div class="rounded-2xl border border-borderc bg-panel p-4">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="font-semibold">Blocks</h3>
+              <div class="text-xs text-textdim" id="blocksSummary"></div>
+            </div>
+            <div id="blocksList" class="grid sm:grid-cols-2 xl:grid-cols-3 gap-3"></div>
+            <div id="blocksEmpty" class="text-sm text-textdim">No blocks yet. Click <b>Auto Split</b> to generate.</div>
+          </div>
+
+          <div class="rounded-2xl border border-borderc bg-panel p-4">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="font-semibold">Words</h3>
+              <input id="wordSearch" placeholder="Search words..." class="bg-white/5 border border-borderc rounded-xl px-3 py-1.5 text-sm focus-ring" />
+            </div>
+            <div class="overflow-auto max-h-[420px] no-scrollbar">
+              <table class="w-full text-sm">
+                <thead class="sticky top-0 bg-bg2">
+                  <tr class="text-left text-textdim">
+                    <th class="py-2 pr-2">#</th>
+                    <th class="py-2 pr-2">Word</th>
+                    <th class="py-2 pr-2">Meaning</th>
+                    <th class="py-2 pr-2">Example/Note</th>
+                    <th class="py-2 pr-2">Tags</th>
+                    <th class="py-2 pr-2">Status</th>
+                    <th class="py-2 pr-2">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="wordsTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FLASHCARDS VIEW -->
+    <section id="view-flashcards" class="space-y-6 hidden">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-semibold">Flashcards</h2>
+        <div class="flex items-center gap-2 text-sm">
+          <label class="flex items-center gap-2"><input id="typingMode" type="checkbox" class="accent-primary"> Typing Test</label>
+        </div>
+      </div>
+
+      <div class="rounded-2xl border border-borderc bg-panel p-4">
+        <div class="flex flex-wrap items-center gap-2 mb-4">
+          <button id="startReviewDue" class="focus-ring px-3 py-1.5 rounded-xl bg-primary/20 hover:bg-primary/30 border border-borderc text-sm">Start Review (Due Today)</button>
+          <select id="selectProjectForNew" class="bg-white/5 border border-borderc rounded-xl px-3 py-1.5 text-sm"></select>
+          <select id="selectBlockForNew" class="bg-white/5 border border-borderc rounded-xl px-3 py-1.5 text-sm"></select>
+          <button id="startNewBlock" class="focus-ring px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm">Start New Block</button>
+          <div id="sessionInfo" class="ml-auto text-xs text-textdim"></div>
+        </div>
+
+        <div id="flashArea" class="max-w-2xl mx-auto">
+          <div id="cardWrap" class="flip rounded-2xl border border-borderc bg-bg2 p-4">
+            <div class="flip-inner" id="flipInner">
+              <div class="flip-front flex flex-col items-center justify-center p-4 gap-3">
+                <div class="text-xs text-textdim">Front</div>
+                <div class="text-2xl font-semibold text-center" id="cardFront">–</div>
+                <div id="typingWrap" class="hidden w-full max-w-sm">
+                  <input id="typingInput" class="w-full bg-white/5 border border-borderc rounded-xl px-3 py-2 focus-ring" placeholder="Type the meaning..." />
+                </div>
+              </div>
+              <div class="flip-back flex flex-col items-center justify-center p-4 gap-3">
+                <div class="text-xs text-textdim">Back</div>
+                <div class="text-lg text-center" id="cardBack">–</div>
+              </div>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 mt-4">
+            <button id="btnFlip" class="focus-ring px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc">Flip (Space)</button>
+            <button id="btnForgot" class="focus-ring px-4 py-2 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-borderc">I Forgot (1)</button>
+            <button id="btnRemember" class="focus-ring px-4 py-2 rounded-xl bg-green-500/20 hover:bg-green-500/30 border border-borderc">I Remember (2)</button>
+            <button id="btnPrev" class="focus-ring px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc">Prev</button>
+            <button id="btnNext" class="focus-ring px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc">Next (Enter)</button>
+            <div class="ml-auto text-xs text-textdim" id="progressText">0 / 0</div>
+          </div>
+        </div>
+      </div>
+      <div class="text-xs text-textdim">Shortcuts: Space = Flip, Enter = Next, 1 = Forgot, 2 = Remember</div>
+    </section>
+
+    <!-- SETTINGS VIEW -->
+    <section id="view-settings" class="space-y-6 hidden">
+      <h2 class="text-xl font-semibold">Settings</h2>
+      <div class="rounded-2xl border border-borderc bg-panel p-4 space-y-4 max-w-xl">
+        <div>
+          <div class="text-sm text-textdim">Default Block Size</div>
+          <input id="setBlockSize" type="number" min="8" max="20" class="bg-white/5 border border-borderc rounded-xl px-3 py-2 focus-ring" />
+        </div>
+        <div>
+          <div class="text-sm text-textdim">Default SRS (days, comma-separated)</div>
+          <input id="setSRS" class="bg-white/5 border border-borderc rounded-xl px-3 py-2 focus-ring" />
+        </div>
+        <div>
+          <div class="text-sm text-textdim">Daily Reminder Time (placeholder)</div>
+          <input id="setReminder" type="time" class="bg-white/5 border border-borderc rounded-xl px-3 py-2 focus-ring" />
+        </div>
+        <div class="flex gap-2">
+          <button id="btnSaveSettings" class="focus-ring px-3 py-1.5 rounded-xl bg-primary/20 hover:bg-primary/30 border border-borderc text-sm">Save Settings</button>
+          <button id="btnResetData" class="focus-ring px-3 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-borderc text-sm">Reset All Data</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODALS -->
+  <div id="modalBackdrop" class="hidden fixed inset-0 z-40 bg-black/60"></div>
+
+  <!-- New Project Modal -->
+  <div id="modalProject" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="w-full max-w-2xl rounded-2xl border border-borderc bg-bg2">
+      <div class="p-4 border-b border-borderc flex items-center justify-between">
+        <h3 class="font-semibold">Create Project</h3>
+        <button class="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10" data-close="modalProject">✕</button>
+      </div>
+      <div class="p-4 space-y-3">
+        <div>
+          <div class="text-sm text-textdim">Title</div>
+          <input id="npTitle" class="w-full bg-white/5 border border-borderc rounded-xl px-3 py-2 focus-ring" placeholder="Assignment 1" />
+        </div>
+        <div>
+          <div class="text-sm text-textdim">Deadline</div>
+          <input id="npDeadline" type="date" class="w-full bg-white/5 border border-borderc rounded-xl px-3 py-2 focus-ring" />
+        </div>
+        <div>
+          <div class="text-sm text-textdim">Block Size (default 12)</div>
+          <input id="npBlock" type="number" min="8" max="20" value="12" class="w-full bg-white/5 border border-borderc rounded-xl px-3 py-2 focus-ring" />
+        </div>
+        <div>
+          <div class="text-sm text-textdim">Words (one per line or use | to add meaning/example/tags)</div>
+          <textarea id="npWords" rows="6" class="w-full bg-white/5 border border-borderc rounded-xl px-3 py-2 focus-ring" placeholder="exacerbate | make worse; intensify | His comment exacerbated the conflict. | formal, academic\nalleviate | make less severe | This drug alleviates pain. | common"></textarea>
+        </div>
+      </div>
+      <div class="p-4 border-t border-borderc flex items-center justify-end gap-2">
+        <button class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm" data-close="modalProject">Cancel</button>
+        <button id="npCreate" class="px-3 py-1.5 rounded-xl bg-primary/20 hover:bg-primary/30 border border-borderc text-sm">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Words Modal -->
+  <div id="modalWords" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="w-full max-w-2xl rounded-2xl border border-borderc bg-bg2">
+      <div class="p-4 border-b border-borderc flex items-center justify-between">
+        <h3 class="font-semibold">Add Words</h3>
+        <button class="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10" data-close="modalWords">✕</button>
+      </div>
+      <div class="p-4 space-y-3">
+        <div>
+          <div class="text-sm text-textdim">Paste words (one per line). Use "word | meaning | example(optional) | tags(optional)"</div>
+          <textarea id="awText" rows="8" class="w-full bg-white/5 border border-borderc rounded-xl px-3 py-2 focus-ring" placeholder="vulnerable | easily hurt | He felt vulnerable after the loss. | common"></textarea>
+        </div>
+      </div>
+      <div class="p-4 border-t border-borderc flex items-center justify-end gap-2">
+        <button class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm" data-close="modalWords">Cancel</button>
+        <button id="awAdd" class="px-3 py-1.5 rounded-xl bg-primary/20 hover:bg-primary/30 border border-borderc text-sm">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import Modal -->
+  <div id="modalImport" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="w-full max-w-xl rounded-2xl border border-borderc bg-bg2">
+      <div class="p-4 border-b border-borderc flex items-center justify-between">
+        <h3 class="font-semibold">Import Data</h3>
+        <button class="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10" data-close="modalImport">✕</button>
+      </div>
+      <div class="p-4 space-y-3">
+        <div class="text-sm text-textdim">Paste exported JSON here (full app or single project JSON).</div>
+        <textarea id="impText" rows="10" class="w-full bg-white/5 border border-borderc rounded-xl px-3 py-2 focus-ring"></textarea>
+      </div>
+      <div class="p-4 border-t border-borderc flex items-center justify-end gap-2">
+        <button class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm" data-close="modalImport">Cancel</button>
+        <button id="impApply" class="px-3 py-1.5 rounded-xl bg-primary/20 hover:bg-primary/30 border border-borderc text-sm">Import</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm Modal -->
+  <div id="modalConfirm" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="w-full max-w-md rounded-2xl border border-borderc bg-bg2">
+      <div class="p-4 border-b border-borderc font-semibold">Please Confirm</div>
+      <div class="p-4 text-sm" id="confirmText">Are you sure?</div>
+      <div class="p-4 border-t border-borderc flex items-center justify-end gap-2">
+        <button class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm" data-close="modalConfirm">Cancel</button>
+        <button id="confirmYes" class="px-3 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-borderc text-sm">Yes</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ==========================
+    // Utils
+    // ==========================
+    const LS_KEY = 'vocab_app_v1';
+
+    const $ = (sel, root=document) => root.querySelector(sel);
+    const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+
+    const uid = (p='id') => `${p}_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+
+    const todayStr = () => formatDate(new Date());
+    const parseDate = (s) => new Date(s + 'T00:00:00');
+    function addDays(dateStr, n){
+      const d = parseDate(dateStr); d.setDate(d.getDate()+n); return formatDate(d);
+    }
+    function formatDate(d){
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,'0');
+      const da = String(d.getDate()).padStart(2,'0');
+      return `${y}-${m}-${da}`;
+    }
+    function isSameDay(a,b){ return a===b; }
+    function daysBetween(a,b){ return Math.round((parseDate(b)-parseDate(a))/(1000*60*60*24)); }
+
+    function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
+
+    function download(filename, text){
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([text], {type:'application/json'}));
+      a.download = filename; a.click(); URL.revokeObjectURL(a.href);
+    }
+
+    // ==========================
+    // Storage & State
+    // ==========================
+    let app = null; // in-memory state
+
+    function load(){
+      try{
+        const raw = localStorage.getItem(LS_KEY);
+        if(!raw){
+          seed();
+        } else {
+          app = JSON.parse(raw);
+        }
+      }catch(e){ console.error('Load error', e); seed(); }
+    }
+    function save(){
+      try{
+        localStorage.setItem(LS_KEY, JSON.stringify(app));
+        updateDeadlineBar();
+      }catch(e){ console.error('Save error', e); alert('Failed to save. LocalStorage may be full.'); }
+    }
+
+    function seed(){
+      const t = new Date();
+      const d1 = formatDate(new Date(t.getFullYear(), t.getMonth(), t.getDate()+7));
+      const d2 = formatDate(new Date(t.getFullYear(), t.getMonth(), t.getDate()+14));
+      const makeWords = (n)=> Array.from({length:n}, (_,i)=>({
+        id: uid('w'), term: `Word ${i+1}`, meaning: `Meaning ${i+1}`,
+        example: `Example sentence for word ${i+1}.`, tags: ['sample'],
+        srs: { intervalIndex: -1, nextReview: null, correctStreak: 0 },
+        status: 'new'
+      }));
+      app = {
+        settings: { defaultBlockSize: 12, defaultSRS: [1,2,5,10,30], theme:'dark', language:'en' },
+        projects: [
+          { id: uid('proj'), title:'Assignment 1', deadline:d1, words: makeWords(24), blocks: [], progress:{total:24, learned:0, mastered:0}, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+          { id: uid('proj'), title:'Assignment 2', deadline:d2, words: makeWords(24), blocks: [], progress:{total:24, learned:0, mastered:0}, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+        ],
+        streak: { current:0, best:0, lastActive: null }
+      };
+      // auto split & schedule samples
+      app.projects.forEach(p=>{ autoSplit(p, app.settings.defaultBlockSize); autoSchedule(p); recomputeProgress(p); });
+      save();
+    }
+
+    // ==========================
+    // Core Logic: Projects, Blocks, Scheduler, SRS
+    // ==========================
+    function getProject(id){ return app.projects.find(p=>p.id===id); }
+
+    function recomputeProgress(project){
+      const total = project.words.length;
+      const learned = project.words.filter(w=>w.status!=='new').length;
+      const mastered = project.words.filter(w=>w.status==='mastered').length;
+      project.progress = { total, learned, mastered };
+    }
+
+    function autoSplit(project, blockSize){
+      const B = clamp(Number(blockSize)||12, 8, 20);
+      const words = project.words.map(w=>w.id);
+      const blocks = [];
+      for(let i=0;i<words.length;i+=B){
+        blocks.push({ id: uid('b'), title: `Block ${blocks.length+1}`, wordIds: words.slice(i,i+B), scheduledDate: null });
+      }
+      project.blocks = blocks;
+      project.updatedAt = new Date().toISOString();
+    }
+
+    function autoSchedule(project){
+      const today = todayStr();
+      const end = project.deadline;
+      if(!end){ return; }
+      const totalBlocks = project.blocks.length;
+      if(totalBlocks===0) return;
+      let days = daysBetween(today, end);
+      if(days < 0){ // deadline in the past: schedule all today
+        project.blocks.forEach(b=> b.scheduledDate = today);
+        return;
+      }
+      // distribute blocks from today to deadline inclusive
+      const slots = days + 1; // number of days including today
+      project.blocks.forEach((b,idx)=>{
+        const dayOffset = Math.floor(idx * (slots/totalBlocks));
+        b.scheduledDate = addDays(today, dayOffset);
+      });
+      project.updatedAt = new Date().toISOString();
+    }
+
+    function parseWordsText(text){
+      const lines = text.split(/\n+/).map(s=>s.trim()).filter(Boolean);
+      const words = [];
+      for(const line of lines){
+        const parts = line.split('|').map(x=>x.trim());
+        const term = parts[0]||''; if(!term) continue;
+        const meaning = parts[1]||''; const example = parts[2]||'';
+        const tags = (parts[3]||'').split(',').map(s=>s.trim()).filter(Boolean);
+        words.push({ id: uid('w'), term, meaning, example, tags, srs:{ intervalIndex:-1, nextReview:null, correctStreak:0 }, status:'new' });
+      }
+      return words;
+    }
+
+    function scheduleTodayData(){
+      const today = todayStr();
+      const learn = [];
+      const review = [];
+      app.projects.forEach(p=>{
+        p.blocks.forEach(b=>{ if(b.scheduledDate === today){ learn.push({projectId:p.id, blockId:b.id}); } });
+        p.words.forEach(w=>{
+          if(w.srs && w.srs.nextReview && w.status!=='new'){
+            if(parseDate(w.srs.nextReview) <= parseDate(today)){ review.push({projectId:p.id, wordId:w.id}); }
+          }
+        });
+      });
+      return {learn, review};
+    }
+
+    function getProjectOfBlock(blockId){
+      for(const p of app.projects){ if(p.blocks.some(b=>b.id===blockId)) return p; }
+      return null;
+    }
+
+    // SRS update
+    function getSRSIntervals(project){
+      const arr = (project && project.srsCustom) ? project.srsCustom : app.settings.defaultSRS;
+      return Array.isArray(arr) ? arr : [1,2,5,10,30];
+    }
+
+    function markRemember(project, word){
+      const intervals = getSRSIntervals(project);
+      if(word.status==='new'){
+        word.status = 'learning';
+        word.srs.intervalIndex = 0;
+        word.srs.correctStreak = 1;
+        word.srs.nextReview = addDays(todayStr(), intervals[0]);
+      } else {
+        word.srs.intervalIndex = clamp((word.srs.intervalIndex||0)+1, 0, intervals.length-1);
+        word.srs.correctStreak = (word.srs.correctStreak||0) + 1;
+        word.srs.nextReview = addDays(todayStr(), intervals[word.srs.intervalIndex]);
+        if(word.srs.intervalIndex === intervals.length-1){ word.status = 'mastered'; }
+        else if(word.status==='learning'){ word.status = 'review'; }
+      }
+    }
+
+    function markForgot(project, word){
+      const intervals = getSRSIntervals(project);
+      if(word.status==='new'){
+        word.srs.intervalIndex = 0;
+        word.srs.correctStreak = 0;
+        word.srs.nextReview = todayStr();
+      } else {
+        word.srs.intervalIndex = clamp((word.srs.intervalIndex||0)-1, 0, intervals.length-1);
+        word.srs.correctStreak = 0;
+        word.srs.nextReview = addDays(todayStr(), intervals[word.srs.intervalIndex]);
+        if(word.status==='mastered' && word.srs.intervalIndex < intervals.length-1){ word.status = 'review'; }
+      }
+    }
+
+    function bumpStreak(){
+      const today = todayStr();
+      const s = app.streak;
+      if(s.lastActive === today) return;
+      if(!s.lastActive){ s.current = 1; s.best = Math.max(s.best||0, s.current); s.lastActive = today; return; }
+      const diff = daysBetween(s.lastActive, today);
+      if(diff === 1){ s.current = (s.current||0) + 1; }
+      else { s.current = 1; }
+      s.best = Math.max(s.best||0, s.current);
+      s.lastActive = today;
+    }
+
+    // ==========================
+    // Rendering
+    // ==========================
+    function showView(name){
+      const ids = ['dashboard','today','project','flashcards','settings'];
+      ids.forEach(id=>{
+        const el = document.getElementById('view-'+id);
+        if(!el) return;
+        if(id===name) el.classList.remove('hidden'); else el.classList.add('hidden');
+      });
+      // highlight nav
+      $$('.navtab').forEach(b=>{
+        if(b.dataset.nav===name) b.classList.add('ring-1','ring-primary/60');
+        else b.classList.remove('ring-1','ring-primary/60');
+      });
+    }
+
+    function renderDeadlineBar(){ updateDeadlineBar(); }
+    function updateDeadlineBar(){
+      const bar = document.getElementById('deadlineBar');
+      if(!bar) return;
+      if(!app.projects.length){ bar.style.width = '0%'; return; }
+      const today = todayStr();
+      // nearest upcoming deadline
+      const upcoming = app.projects
+        .map(p=>p.deadline)
+        .filter(Boolean)
+        .sort((a,b)=> parseDate(a)-parseDate(b))[0];
+      if(!upcoming){ bar.style.width='0%'; return; }
+      const total = 30; // consider 30 days window
+      const remain = clamp(daysBetween(today, upcoming), 0, total);
+      const pct = 100 - (remain/total)*100; // more filled when closer
+      bar.style.width = pct.toFixed(0)+'%';
+    }
+
+    function renderDashboard(){
+      const wrap = document.getElementById('dashboardProjects');
+      wrap.innerHTML = '';
+      if(app.projects.length===0){ $('#emptyDash').classList.remove('hidden'); return; }
+      $('#emptyDash').classList.add('hidden');
+
+      app.projects.forEach(p=>{
+        recomputeProgress(p);
+        const pctMastered = p.progress.total ? Math.round((p.progress.mastered/p.progress.total)*100) : 0;
+        const card = document.createElement('div');
+        card.className = 'rounded-2xl border border-borderc bg-panel p-4 flex flex-col gap-3';
+        card.innerHTML = `
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <div class="font-semibold">${escapeHTML(p.title)}</div>
+              <div class="text-xs text-textdim">${p.progress.mastered}/${p.progress.total} mastered • ${p.blocks.length} blocks</div>
+            </div>
+            <div class="text-xs px-2 py-1 rounded bg-white/10 border border-borderc">Due ${escapeHTML(p.deadline||'-')}</div>
+          </div>
+          <div class="h-2 rounded bg-white/5 overflow-hidden">
+            <div class="h-full bg-gradient-to-r from-primary to-secondary" style="width:${pctMastered}%"></div>
+          </div>
+          <div class="flex flex-wrap gap-2 mt-1">
+            <button class="px-3 py-1.5 rounded-xl bg-primary/20 hover:bg-primary/30 border border-borderc text-sm openProj" data-id="${p.id}">Open</button>
+            <button class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm quickAdd" data-id="${p.id}">Quick Add Words</button>
+            <button class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm exportProj" data-id="${p.id}">Export</button>
+            <button class="px-3 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-borderc text-sm deleteProj" data-id="${p.id}">Delete</button>
+          </div>
+        `;
+        wrap.appendChild(card);
+      });
+
+      // Attach events
+      $$('.openProj').forEach(b=> b.addEventListener('click', ()=> openProject(b.dataset.id)));
+      $$('.quickAdd').forEach(b=> b.addEventListener('click', ()=> openAddWordsModal(b.dataset.id)));
+      $$('.exportProj').forEach(b=> b.addEventListener('click', ()=> exportProject(b.dataset.id)));
+      $$('.deleteProj').forEach(b=> b.addEventListener('click', ()=> confirmDeleteProject(b.dataset.id)));
+    }
+
+    let currentProjectId = null;
+
+    function openProject(id){
+      const p = getProject(id); if(!p) return;
+      currentProjectId = id;
+      $('[data-nav="project"]').classList.remove('hidden');
+      $('[data-nav="project"]').click();
+      renderProject();
+    }
+
+    function renderProject(){
+      const p = getProject(currentProjectId); if(!p) return;
+      $('#projTitle').textContent = p.title;
+      $('#projDeadlineBadge').textContent = 'Deadline: '+(p.deadline||'-');
+      $('#projTitleInput').value = p.title;
+      $('#projDeadlineInput').value = p.deadline||'';
+      $('#projBlockSize').value = p.blockSize || app.settings.defaultBlockSize;
+      $('#projSRS').value = (p.srsCustom && Array.isArray(p.srsCustom) ? p.srsCustom : app.settings.defaultSRS).join(',');
+
+      recomputeProgress(p);
+      $('#projStats').textContent = `${p.progress.learned}/${p.progress.total} learned • ${p.progress.mastered} mastered`;
+
+      // Blocks
+      const bl = $('#blocksList'); bl.innerHTML='';
+      if(!p.blocks.length) $('#blocksEmpty').classList.remove('hidden'); else $('#blocksEmpty').classList.add('hidden');
+      $('#blocksSummary').textContent = `${p.blocks.length} blocks`;
+      p.blocks.forEach((b,idx)=>{
+        const el = document.createElement('div');
+        el.className = 'rounded-xl border border-borderc bg-white/5 p-3 space-y-2';
+        el.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div class="font-medium">${escapeHTML(b.title)}</div>
+            <div class="text-xs px-2 py-1 rounded bg-white/10 border border-borderc">${b.scheduledDate || '-'}</div>
+          </div>
+          <div class="text-xs text-textdim">${b.wordIds.length} words</div>
+          <div class="flex gap-2">
+            <button class="px-2 py-1 rounded-lg bg-primary/20 hover:bg-primary/30 border border-borderc text-xs startBlock" data-bid="${b.id}">Start</button>
+          </div>
+        `;
+        bl.appendChild(el);
+      });
+      $$('.startBlock').forEach(btn=> btn.addEventListener('click', ()=> startNewBlockSession(p.id, btn.dataset.bid)));
+
+      // Words table
+      const tbody = $('#wordsTable'); tbody.innerHTML='';
+      const q = ($('#wordSearch').value||'').toLowerCase();
+      p.words.forEach((w, i)=>{
+        if(q && !(`${w.term} ${w.meaning} ${w.example} ${(w.tags||[]).join(' ')}`.toLowerCase().includes(q))) return;
+        const tr = document.createElement('tr');
+        tr.className = 'border-t border-borderc/40';
+        tr.innerHTML = `
+          <td class="py-2 pr-2 text-textdim">${i+1}</td>
+          <td class="py-2 pr-2">${escapeHTML(w.term)}</td>
+          <td class="py-2 pr-2">${escapeHTML(w.meaning||'')}</td>
+          <td class="py-2 pr-2">${escapeHTML(w.example||'')}</td>
+          <td class="py-2 pr-2 text-textdim">${(w.tags||[]).map(t=>`<span class='px-2 py-0.5 rounded bg-white/10 border border-borderc mr-1'>${escapeHTML(t)}</span>`).join('')}</td>
+          <td class="py-2 pr-2 text-textdim">${w.status}</td>
+          <td class="py-2 pr-2">
+            <button class="px-2 py-1 rounded bg-white/5 hover:bg-white/10 border border-borderc text-xs editWord" data-wid="${w.id}">Edit</button>
+            <button class="px-2 py-1 rounded bg-red-500/20 hover:bg-red-500/30 border border-borderc text-xs delWord" data-wid="${w.id}">Delete</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+      $$('#wordSearch').forEach(inp=> inp.oninput = ()=> renderProject());
+      $$('.editWord').forEach(btn=> btn.addEventListener('click', ()=> editWordPrompt(p.id, btn.dataset.wid)));
+      $$('.delWord').forEach(btn=> btn.addEventListener('click', ()=> deleteWord(p.id, btn.dataset.wid)));
+    }
+
+    function escapeHTML(str){ return (str||'').replace(/[&<>\"]/g, s=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[s]) ); }
+
+    // TODAY view
+    function renderToday(){
+      const {learn, review} = scheduleTodayData();
+      $('#todayLearnCount').textContent = `${learn.length} block(s)`;
+      $('#todayReviewCount').textContent = `${review.length} word(s)`;
+
+      const learnList = $('#todayLearnList'); learnList.innerHTML='';
+      if(learn.length===0) $('#todayLearnEmpty').classList.remove('hidden'); else $('#todayLearnEmpty').classList.add('hidden');
+      learn.forEach(item=>{
+        const p = getProject(item.projectId); const b = p.blocks.find(x=>x.id===item.blockId);
+        const el = document.createElement('div');
+        el.className = 'rounded-xl border border-borderc bg-white/5 p-3 flex items-center justify-between';
+        el.innerHTML = `
+          <div><div class="font-medium">${escapeHTML(p.title)} • ${escapeHTML(b.title)}</div>
+          <div class="text-xs text-textdim">${b.wordIds.length} words</div></div>
+          <button class="px-3 py-1.5 rounded-xl bg-primary/20 hover:bg-primary/30 border border-borderc text-sm" data-pid="${p.id}" data-bid="${b.id}">Start</button>
+        `;
+        el.querySelector('button').addEventListener('click', ()=> startNewBlockSession(p.id, b.id));
+        learnList.appendChild(el);
+      });
+
+      const reviewList = $('#todayReviewList'); reviewList.innerHTML='';
+      if(review.length===0) $('#todayReviewEmpty').classList.remove('hidden'); else $('#todayReviewEmpty').classList.add('hidden');
+      if(review.length){
+        const btn = document.createElement('button');
+        btn.className = 'px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm';
+        btn.textContent = 'Start Review Now';
+        btn.addEventListener('click', startReviewDueSession);
+        const holder = document.createElement('div'); holder.appendChild(btn);
+        reviewList.appendChild(holder);
+      }
+    }
+
+    // FLASHCARDS
+    let session = { mode:null, wordIds:[], idx:0, projectId:null };
+
+    function initFlashcardsSelectors(){
+      const selP = $('#selectProjectForNew');
+      selP.innerHTML = `<option value="">Select Project…</option>` + app.projects.map(p=>`<option value="${p.id}">${escapeHTML(p.title)}</option>`).join('');
+      $('#selectBlockForNew').innerHTML = `<option value="">Select Block…</option>`;
+      selP.onchange = ()=>{
+        const p = getProject(selP.value); const selB = $('#selectBlockForNew');
+        if(!p){ selB.innerHTML = `<option value="">Select Block…</option>`; return; }
+        selB.innerHTML = `<option value="">Select Block…</option>` + p.blocks.map(b=>`<option value="${b.id}">${escapeHTML(b.title)} (${b.wordIds.length})</option>`).join('');
+      }
+    }
+
+    function startNewBlockSession(projectId, blockId){
+      const p = getProject(projectId); const b = p.blocks.find(x=>x.id===blockId);
+      if(!b){ alert('Block not found'); return; }
+      session = { mode:'new', wordIds:[...b.wordIds], idx:0, projectId:p.id };
+      bumpStreak(); save();
+      showView('flashcards');
+      initFlashcardsSelectors();
+      renderSessionCard();
+    }
+
+    function startNewBlockFromSelectors(){
+      const pid = $('#selectProjectForNew').value; const bid = $('#selectBlockForNew').value;
+      if(!pid || !bid){ alert('Select project and block.'); return; }
+      startNewBlockSession(pid, bid);
+    }
+
+    function startReviewDueSession(){
+      const due = scheduleTodayData().review; if(!due.length){ alert('No words due today.'); return; }
+      const wordIds = [];
+      due.forEach(item=>{
+        const p = getProject(item.projectId); const w = p.words.find(x=>x.id===item.wordId);
+        if(w) wordIds.push({pid:p.id, wid:w.id});
+      });
+      // Flatten but keep one project for updates per-word
+      session = { mode:'review', wordIds, idx:0, projectId:null };
+      bumpStreak(); save();
+      showView('flashcards');
+      initFlashcardsSelectors();
+      renderSessionCard();
+    }
+
+    function currentWord(){
+      if(session.idx < 0 || session.idx >= session.wordIds.length) return null;
+      if(session.mode==='new'){
+        const p = getProject(session.projectId);
+        return p.words.find(w=> w.id === session.wordIds[session.idx]);
+      } else { // review
+        const ref = session.wordIds[session.idx];
+        const p = getProject(ref.pid);
+        return p.words.find(w=> w.id === ref.wid);
+      }
+    }
+
+    function currentProject(){
+      if(session.mode==='new') return getProject(session.projectId);
+      if(session.mode==='review'){
+        const ref = session.wordIds[session.idx];
+        return ref ? getProject(ref.pid) : null;
+      }
+      return null;
+    }
+
+    function renderSessionCard(){
+      $('#sessionInfo').textContent = `${session.mode ? session.mode.toUpperCase() : '-'} • ${session.idx+1}/${session.wordIds.length}`;
+      $('#progressText').textContent = `${session.idx+1} / ${session.wordIds.length}`;
+      const w = currentWord();
+      if(!w){ $('#cardFront').textContent='—'; $('#cardBack').textContent='—'; return; }
+      $('#flipInner').parentElement.classList.remove('flipped');
+      $('#cardFront').textContent = w.term || '—';
+      $('#cardBack').innerHTML = `<div class='text-base'>${escapeHTML(w.meaning||'(no meaning)')}</div>` + (w.example? `<div class='text-sm text-textdim mt-2'>${escapeHTML(w.example)}</div>`:'');
+
+      const typing = $('#typingMode').checked;
+      $('#typingWrap').classList.toggle('hidden', !typing);
+      $('#typingInput').value = '';
+      if(typing) setTimeout(()=> $('#typingInput').focus(), 10);
+    }
+
+    function flipCard(){ $('#cardWrap').classList.toggle('flipped'); }
+
+    function nextCard(){ if(session.idx < session.wordIds.length-1){ session.idx++; renderSessionCard(); } }
+    function prevCard(){ if(session.idx > 0){ session.idx--; renderSessionCard(); } }
+
+    function onRemember(){
+      const p = currentProject(); const w = currentWord(); if(!w||!p) return;
+      // If typing mode is on, check answer before accepting
+      if($('#typingMode').checked){
+        const ans = ($('#typingInput').value||'').trim().toLowerCase();
+        const tgt = (w.meaning||'').trim().toLowerCase();
+        if(ans && !tgt.includes(ans) && !ans.includes(tgt)){
+          // not strict; allow contains either way
+          // mark as forgot instead
+          onForgot(); return;
+        }
+      }
+      markRemember(p, w); recomputeProgress(p); bumpStreak(); save();
+      nextCard();
+    }
+
+    function onForgot(){
+      const p = currentProject(); const w = currentWord(); if(!w||!p) return;
+      markForgot(p, w); recomputeProgress(p); bumpStreak(); save();
+      nextCard();
+    }
+
+    // ==========================
+    // Actions
+    // ==========================
+    function openNewProjectModal(){ $('#modalBackdrop').classList.remove('hidden'); $('#modalProject').classList.remove('hidden'); }
+    function closeModal(id){ $('#modalBackdrop').classList.add('hidden'); $('#'+id).classList.add('hidden'); }
+
+    function createProject(){
+      const title = $('#npTitle').value.trim() || 'Untitled Project';
+      const deadline = $('#npDeadline').value || '';
+      const blockSize = clamp(Number($('#npBlock').value)||12, 8, 20);
+      const words = parseWordsText($('#npWords').value||'');
+      const proj = { id: uid('proj'), title, deadline, words, blocks: [], progress:{total:words.length, learned:0, mastered:0}, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(), blockSize };
+      autoSplit(proj, blockSize); autoSchedule(proj); recomputeProgress(proj);
+      app.projects.push(proj); save();
+      closeModal('modalProject');
+      renderDashboard(); renderToday(); initFlashcardsSelectors();
+    }
+
+    function exportAll(){ download('vocab_app_export.json', JSON.stringify(app, null, 2)); }
+
+    function importAll(){ $('#modalBackdrop').classList.remove('hidden'); $('#modalImport').classList.remove('hidden'); }
+
+    function applyImport(){
+      try{
+        const obj = JSON.parse($('#impText').value);
+        if(obj.projects){
+          // Full app import -> merge projects, avoid ID collision
+          const existingIds = new Set(app.projects.map(p=>p.id));
+          obj.projects.forEach(p=>{
+            if(existingIds.has(p.id)) p.id = uid('proj');
+            // ensure words/blocks ids unique
+            const wid = new Set();
+            p.words.forEach(w=>{ if(wid.has(w.id)) w.id = uid('w'); else wid.add(w.id); });
+            const bid = new Set();
+            p.blocks.forEach(b=>{ if(bid.has(b.id)) b.id = uid('b'); else bid.add(b.id); });
+            app.projects.push(p);
+          });
+        } else if(obj.id && obj.words){
+          // Single project
+          const p = obj; p.id = uid('proj');
+          const wid = new Set(); p.words.forEach(w=>{ if(wid.has(w.id)) w.id = uid('w'); else wid.add(w.id); });
+          const bid = new Set(); p.blocks.forEach(b=>{ if(bid.has(b.id)) b.id = uid('b'); else bid.add(b.id); });
+          app.projects.push(p);
+        } else { alert('Invalid JSON format.'); return; }
+        save();
+        closeModal('modalImport');
+        renderDashboard(); renderToday(); initFlashcardsSelectors();
+      }catch(e){ alert('Failed to import JSON: '+e.message); }
+    }
+
+    function exportProject(id){
+      const p = getProject(id); if(!p) return;
+      download(`${p.title.replace(/\s+/g,'_')}.json`, JSON.stringify(p, null, 2));
+    }
+
+    function confirmDeleteProject(id){
+      $('#confirmText').textContent = 'Delete this project? This cannot be undone.';
+      $('#modalBackdrop').classList.remove('hidden'); $('#modalConfirm').classList.remove('hidden');
+      $('#confirmYes').onclick = ()=>{ deleteProject(id); closeModal('modalConfirm'); };
+    }
+
+    function deleteProject(id){
+      app.projects = app.projects.filter(p=>p.id!==id);
+      if(currentProjectId===id) currentProjectId = null;
+      save(); renderDashboard(); renderToday(); initFlashcardsSelectors();
+      if(!app.projects.length) showView('dashboard');
+    }
+
+    function openAddWordsModal(projectId){ currentProjectId = projectId; $('#modalBackdrop').classList.remove('hidden'); $('#modalWords').classList.remove('hidden'); }
+
+    function addWordsToCurrent(){
+      const p = getProject(currentProjectId); if(!p) return;
+      const words = parseWordsText($('#awText').value||'');
+      p.words.push(...words);
+      p.updatedAt = new Date().toISOString();
+      recomputeProgress(p);
+      // maintain block size by re-splitting (ask confirm)
+      if(confirm('Rebuild blocks now to include new words?')){ autoSplit(p, p.blockSize||app.settings.defaultBlockSize); autoSchedule(p); }
+      save();
+      closeModal('modalWords');
+      renderProject(); renderDashboard(); renderToday();
+    }
+
+    function editWordPrompt(pid, wid){
+      const p = getProject(pid); const w = p.words.find(x=>x.id===wid);
+      const term = prompt('Edit term', w.term); if(term===null) return;
+      const meaning = prompt('Edit meaning', w.meaning||''); if(meaning===null) return;
+      const example = prompt('Edit example', w.example||''); if(example===null) return;
+      const tags = prompt('Edit tags (comma-separated)', (w.tags||[]).join(', ')); if(tags===null) return;
+      Object.assign(w, {term, meaning, example, tags: tags.split(',').map(s=>s.trim()).filter(Boolean)});
+      p.updatedAt = new Date().toISOString(); save(); renderProject(); renderDashboard();
+    }
+
+    function deleteWord(pid, wid){
+      const p = getProject(pid);
+      p.words = p.words.filter(w=>w.id!==wid);
+      // Also remove from blocks
+      p.blocks.forEach(b=> b.wordIds = b.wordIds.filter(id=> id!==wid));
+      recomputeProgress(p); save(); renderProject(); renderDashboard(); renderToday();
+    }
+
+    function saveProjectMeta(){
+      const p = getProject(currentProjectId); if(!p) return;
+      p.title = $('#projTitleInput').value.trim() || p.title;
+      p.deadline = $('#projDeadlineInput').value || p.deadline;
+      p.blockSize = clamp(Number($('#projBlockSize').value)||app.settings.defaultBlockSize, 8, 20);
+      const srsStr = $('#projSRS').value.trim();
+      const arr = srsStr.split(',').map(x=> parseInt(x.trim(),10)).filter(x=> !isNaN(x) && x>0);
+      if(arr.length) p.srsCustom = arr; else delete p.srsCustom;
+      p.updatedAt = new Date().toISOString(); save(); renderProject(); renderDashboard(); renderToday(); initFlashcardsSelectors();
+    }
+
+    function projectAutoSplit(){ const p = getProject(currentProjectId); autoSplit(p, p.blockSize||app.settings.defaultBlockSize); save(); renderProject(); renderToday(); }
+    function projectReschedule(){ const p = getProject(currentProjectId); autoSchedule(p); save(); renderProject(); renderToday(); }
+
+
+    // SETTINGS actions
+    function renderSettings(){
+      $('#setBlockSize').value = app.settings.defaultBlockSize;
+      $('#setSRS').value = app.settings.defaultSRS.join(',');
+      $('#setReminder').value = '08:00';
+    }
+
+    function saveSettings(){
+      app.settings.defaultBlockSize = clamp(Number($('#setBlockSize').value)||12, 8, 20);
+      const arr = $('#setSRS').value.split(',').map(x=> parseInt(x.trim(),10)).filter(x=>!isNaN(x)&&x>0);
+      if(arr.length) app.settings.defaultSRS = arr;
+      save(); alert('Settings saved.');
+    }
+
+    function resetAll(){ if(confirm('Reset ALL data? This cannot be undone.')){ localStorage.removeItem(LS_KEY); seed(); renderAll(); } }
+
+    // ==========================
+    // Event wiring
+    // ==========================
+    function wireEvents(){
+      // nav
+      $$('.navtab').forEach(b=> b.addEventListener('click', ()=>{
+        const target = b.dataset.nav; showView(target); if(target==='today') renderToday(); if(target==='dashboard') renderDashboard(); if(target==='settings') renderSettings(); if(target==='flashcards') initFlashcardsSelectors();
+      }));
+      // header
+      $('#btnNewProjectHeader').addEventListener('click', openNewProjectModal);
+      // dashboard
+      $('#btnNewProjectDash').addEventListener('click', openNewProjectModal);
+      $('#btnExportAll').addEventListener('click', exportAll);
+      $('#btnImportAll').addEventListener('click', importAll);
+      // modals close
+      $$('[data-close]').forEach(b=> b.addEventListener('click', ()=> closeModal(b.getAttribute('data-close')) ));
+      // new project modal
+      $('#npCreate').addEventListener('click', createProject);
+      // add words modal
+      $('#awAdd').addEventListener('click', addWordsToCurrent);
+      // import modal
+      $('#impApply').addEventListener('click', applyImport);
+      // project view buttons
+      $('#backToDashboard').addEventListener('click', ()=>{ showView('dashboard'); renderDashboard(); });
+      $('#btnProjSave').addEventListener('click', saveProjectMeta);
+      $('#btnAddWords').addEventListener('click', ()=> openAddWordsModal(currentProjectId));
+      $('#btnAutoSplit').addEventListener('click', projectAutoSplit);
+      $('#btnReschedule').addEventListener('click', projectReschedule);
+      $('#btnExportProject').addEventListener('click', ()=> exportProject(currentProjectId));
+      $('#btnDeleteProject').addEventListener('click', ()=> confirmDeleteProject(currentProjectId));
+
+      // Flashcards selectors
+      $('#startNewBlock').addEventListener('click', startNewBlockFromSelectors);
+      $('#startReviewDue').addEventListener('click', startReviewDueSession);
+
+      // Flashcards buttons
+      $('#btnFlip').addEventListener('click', flipCard);
+      $('#btnNext').addEventListener('click', nextCard);
+      $('#btnPrev').addEventListener('click', prevCard);
+      $('#btnRemember').addEventListener('click', onRemember);
+      $('#btnForgot').addEventListener('click', onForgot);
+
+      // Keyboard shortcuts
+      document.addEventListener('keydown', (e)=>{
+        const inFlash = !$('#view-flashcards').classList.contains('hidden');
+        if(!inFlash) return;
+        const typingActive = $('#typingMode').checked && document.activeElement === $('#typingInput');
+        if(typingActive) return; // don't hijack typing input
+        if(e.code==='Space'){ e.preventDefault(); flipCard(); }
+        else if(e.code==='Enter'){ e.preventDefault(); nextCard(); }
+        else if(e.key==='1'){ e.preventDefault(); onForgot(); }
+        else if(e.key==='2'){ e.preventDefault(); onRemember(); }
+      });
+
+      // Typing mode toggle
+      $('#typingMode').addEventListener('change', ()=> renderSessionCard());
+    }
+
+    function renderAll(){
+      renderDeadlineBar();
+      renderDashboard();
+      renderToday();
+      initFlashcardsSelectors();
+      renderSettings();
+      showView('dashboard');
+    }
+
+    // ==========================
+    // Init
+    // ==========================
+    load();
+    wireEvents();
+    renderAll();
+  </script>
+</body>
+</html>
