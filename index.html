@@ -1,1047 +1,1992 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Vocab SRS Manager</title>
-  <meta name="description" content="Single-file vocabulary manager with projects, blocks, deadlines, and spaced repetition (SRS)." />
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            primary: '#8b5cf6', // violet-500
-            secondary: '#ec4899', // pink-500
-            bg1: '#0f1226',
-            bg2: '#0b0f20',
-            panel: 'rgba(255,255,255,0.06)',
-            borderc: 'rgba(255,255,255,0.14)',
-            text: '#eef1ff',
-            textdim: '#c9cbe8'
-          }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vocab Master - SRS Learning</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'glass': 'rgba(255, 255, 255, 0.1)',
+                        'glass-border': 'rgba(255, 255, 255, 0.2)',
+                    },
+                    animation: {
+                        'float': 'float 6s ease-in-out infinite',
+                        'pulse-soft': 'pulse-soft 2s ease-in-out infinite',
+                        'slide-in': 'slide-in 0.5s ease-out',
+                        'scale-in': 'scale-in 0.3s ease-out',
+                        'flip': 'flip 0.6s ease-in-out',
+                    },
+                    backdropBlur: {
+                        'xs': '2px',
+                    }
+                }
+            }
         }
-      }
-    }
-  </script>
-  <style>
-    /* Minimal custom CSS for card flip */
-    .flip {
-      perspective: 1000px;
-    }
-    .flip-inner {
-      position: relative;
-      transform-style: preserve-3d;
-      transition: transform .5s ease;
-      min-height: 220px;
-    }
-    .flipped .flip-inner { transform: rotateY(180deg); }
-    .flip-front, .flip-back {
-      position: absolute; inset: 0; backface-visibility: hidden;
-    }
-    .flip-back { transform: rotateY(180deg); }
+    </script>
+    <style>
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        @keyframes pulse-soft {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+        }
+        
+        @keyframes slide-in {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes scale-in {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        
+        @keyframes flip {
+            0% { transform: rotateY(0); }
+            100% { transform: rotateY(180deg); }
+        }
 
-    /* Hide scrollbar for nicer panels */
-    .no-scrollbar::-webkit-scrollbar { display: none; }
-    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        /* Glassmorphism base */
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .glass-strong {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
 
-    /* Focus ring */
-    .focus-ring:focus { outline: 2px solid #8b5cf6; outline-offset: 2px; }
-  </style>
+        /* Animated background */
+        .animated-bg {
+            background: linear-gradient(-45deg, #1a1a2e, #16213e, #0f3460, #533483);
+            background-size: 400% 400%;
+            animation: gradient-shift 15s ease infinite;
+        }
+        
+        @keyframes gradient-shift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Card hover effects */
+        .card-hover {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Button effects */
+        .btn-primary {
+            background: linear-gradient(135deg, #8b5cf6, #ec4899);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(139, 92, 246, 0.4);
+        }
+        
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+        }
+
+        /* Focus rings */
+        .focus-ring:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.5);
+        }
+
+        /* Flashcard 3D */
+        .flip-card {
+            perspective: 1000px;
+        }
+        
+        .flip-card-inner {
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d;
+        }
+        
+        .flip-card.flipped .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+        
+        .flip-card-front, .flip-card-back {
+            backface-visibility: hidden;
+        }
+        
+        .flip-card-back {
+            transform: rotateY(180deg);
+        }
+
+        /* Progress bars */
+        .progress-animated {
+            transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Pressure bar */
+        .pressure-bar {
+            background: linear-gradient(90deg, #10b981 0%, #f59e0b 50%, #ef4444 100%);
+            background-size: 200% 100%;
+            animation: pressure-pulse 3s ease-in-out infinite;
+        }
+        
+        @keyframes pressure-pulse {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        /* Gradient text */
+        .gradient-text {
+            background: linear-gradient(135deg, #8b5cf6, #06b6d4, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Modal backdrop */
+        .modal-backdrop {
+            backdrop-filter: blur(8px);
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        /* Select dropdown fixes */
+        .select-wrapper {
+            position: relative;
+            overflow: visible;
+            z-index: 50;
+        }
+        
+        select {
+            position: relative;
+            z-index: 51;
+        }
+
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+            
+            .animated-bg {
+                animation: none;
+                background: #1a1a2e;
+            }
+            
+            .view {
+                animation: none;
+            }
+            
+            .card-hover:hover {
+                transform: none;
+            }
+            
+            .btn-primary:hover {
+                transform: none;
+            }
+        }
+
+        .select-fix-wrap{ position:relative; z-index:10000; overflow:visible !important; }
+        #flashcardsView .toolbar-row{ position:relative; z-index:900; overflow:visible !important; }
+        #flashcardsView .flashcard-shell{ overflow:visible !important; }
+        #flashcardsView select{ position:relative; z-index:10001; }
+        /* Avoid stacking-context that clips native menus */
+        #flashcardsView{ filter:none !important; animation: fadeOnly .28s ease !important; }
+        @keyframes fadeOnly{ from{opacity:0} to{opacity:1} }
+        /* Inside Flashcards, don't use transforms that can create clipping contexts */
+        #flashcardsView .card-hover, 
+        #flashcardsView .card-hover:hover{ transform:none !important; }
+
+        /* ---- Flashcards dropdown anti-clipping ---- */
+        #flashcardsView { isolation: isolate; } /* new stacking context that we control */
+        #flashcardsView .toolbar-row { 
+          position: relative; 
+          z-index: 10000;
+          overflow: visible !important;
+        }
+        #flashcardsView .select-fix-wrap { 
+          position: relative; 
+          z-index: 10001; 
+          overflow: visible !important; 
+        }
+        #flashcardsView select { 
+          position: relative; 
+          z-index: 10002; 
+        }
+
+        /* The panel below sometimes sits above native selects because of backdrop-filter */
+        #flashcardsView .flashcard-shell { 
+          position: relative; 
+          z-index: 1; 
+          overflow: visible !important; 
+          /* avoid the Chromium bug where backdrop-filter creates a clipping/stacking context above native menus */
+          --_bf: none; 
+          -webkit-backdrop-filter: var(--_bf) !important;
+          backdrop-filter: var(--_bf) !important;
+        }
+
+        /* The flip-card uses perspective/transform, which can create a new stacking context above the select */
+        #flashcardsView .flip-card { 
+          perspective: none !important; 
+        }
+        #flashcardsView .flip-card-inner { 
+          transform: none !important; 
+        }
+
+        /* Keep hover lifts from raising over the dropdown */
+        #flashcardsView .card-hover,
+        #flashcardsView .card-hover:hover {
+          transform: none !important;
+        }
+
+        /* Safety: ensure no ancestor hides overflow in this view */
+        #flashcardsView .glass, 
+        #flashcardsView .glass-strong {
+          overflow: visible !important;
+        }
+
+        /* View transitions - no transform to avoid layout shift */
+        .view {
+            animation: fade-in 0.4s ease-out;
+        }
+        
+        @keyframes fade-in {
+            from { 
+                opacity: 0; 
+                filter: blur(4px);
+            }
+            to { 
+                opacity: 1; 
+                filter: blur(0);
+            }
+        }
+
+        /* Empty state illustration - centered with CSS Grid */
+        .hero-illo {
+            width: 200px;
+            height: 200px;
+            margin: 0 auto;
+            display: grid;
+            place-items: center;
+            position: relative;
+        }
+        
+        .hero-illo::before {
+            content: '';
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, #8b5cf6, #ec4899);
+            border-radius: 50%;
+            opacity: 0.2;
+            animation: float 4s ease-in-out infinite;
+            grid-area: 1 / 1;
+        }
+        
+        .hero-illo::after {
+            content: '📚';
+            font-size: 4rem;
+            animation: float 4s ease-in-out infinite 0.5s;
+            grid-area: 1 / 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
 </head>
-<body class="min-h-screen bg-bg1 text-text antialiased">
-  <!-- HEADER -->
-  <header class="sticky top-0 z-30 backdrop-blur supports-[backdrop-filter]:bg-bg1/60 border-b border-borderc">
-    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
-      <div class="flex items-center gap-3">
-        <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-secondary"></div>
-        <h1 class="text-lg sm:text-xl font-semibold">Vocab SRS Manager</h1>
-      </div>
-      <div class="ml-auto flex items-center gap-3">
-        <button id="btnNewProjectHeader" class="focus-ring px-3 py-1.5 rounded-xl bg-primary/20 hover:bg-primary/30 border border-borderc text-sm" aria-label="Create new project">+ New Project</button>
-      </div>
-    </div>
-    <!-- Deadline Pressure Bar -->
-    <div class="w-full h-1.5">
-      <div id="deadlineBar" class="h-full bg-gradient-to-r from-green-500 via-yellow-400 to-red-500 transition-all" style="width:0%"></div>
-    </div>
-    <!-- NAV -->
-    <nav class="max-w-6xl mx-auto px-4 py-2 flex gap-2 text-sm">
-      <button data-nav="dashboard" class="navtab focus-ring px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-borderc">Dashboard</button>
-      <button data-nav="today" class="navtab focus-ring px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-borderc">Today</button>
-      <button data-nav="project" class="navtab focus-ring px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-borderc hidden">Project</button>
-      <button data-nav="flashcards" class="navtab focus-ring px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-borderc">Flashcards</button>
-      <button data-nav="settings" class="navtab focus-ring px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-borderc">Settings</button>
-    </nav>
-  </header>
-
-  <!-- MAIN CONTAINER -->
-  <main class="max-w-6xl mx-auto px-4 py-6 space-y-8">
-
-    <!-- DASHBOARD VIEW -->
-    <section id="view-dashboard" class="space-y-4">
-      <div class="flex items-center justify-between">
-        <h2 class="text-xl font-semibold">Dashboard</h2>
-        <div class="flex gap-2">
-          <button class="focus-ring px-3 py-1.5 rounded-xl bg-primary/20 hover:bg-primary/30 border border-borderc text-sm" id="btnNewProjectDash">+ Create Project</button>
-          <button class="focus-ring px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm" id="btnExportAll">Export All (JSON)</button>
-          <button class="focus-ring px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm" id="btnImportAll">Import</button>
-        </div>
-      </div>
-      <div id="dashboardProjects" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
-      <div id="emptyDash" class="hidden text-textdim text-sm">No projects yet. Click <b>+ Create Project</b> to start.</div>
-    </section>
-
-    <!-- TODAY VIEW -->
-    <section id="view-today" class="space-y-6 hidden">
-      <h2 class="text-xl font-semibold">Today</h2>
-      <div class="grid md:grid-cols-2 gap-6">
-        <div class="rounded-2xl border border-borderc bg-panel p-4">
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="font-semibold">Learn Today (New Blocks)</h3>
-            <div id="todayLearnCount" class="text-xs text-textdim"></div>
-          </div>
-          <div id="todayLearnList" class="space-y-3"></div>
-          <div id="todayLearnEmpty" class="text-sm text-textdim">No new blocks scheduled for today.</div>
-        </div>
-        <div class="rounded-2xl border border-borderc bg-panel p-4">
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="font-semibold">Review Today (SRS Due)</h3>
-            <div id="todayReviewCount" class="text-xs text-textdim"></div>
-          </div>
-          <div id="todayReviewList" class="space-y-3"></div>
-          <div id="todayReviewEmpty" class="text-sm text-textdim">No reviews due today.</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- PROJECT DETAIL VIEW -->
-    <section id="view-project" class="space-y-6 hidden">
-      <div class="flex items-center gap-3">
-        <button id="backToDashboard" class="focus-ring px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm">← Back</button>
-        <h2 id="projTitle" class="text-xl font-semibold">Project</h2>
-        <span id="projDeadlineBadge" class="ml-auto text-xs px-2 py-1 rounded bg-white/10 border border-borderc"></span>
-      </div>
-
-      <div class="grid lg:grid-cols-3 gap-6">
-        <!-- Left: Meta & Controls -->
-        <div class="rounded-2xl border border-borderc bg-panel p-4 space-y-4">
-          <div class="space-y-1">
-            <div class="text-sm text-textdim">Project Title</div>
-            <input id="projTitleInput" class="w-full bg-white/5 border border-borderc rounded-xl px-3 py-2 focus-ring" />
-          </div>
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <div class="text-sm text-textdim">Deadline</div>
-              <input id="projDeadlineInput" type="date" class="w-full bg-white/5 border border-borderc rounded-xl px-3 py-2 focus-ring" />
-            </div>
-            <div>
-              <div class="text-sm text-textdim">Block size</div>
-              <input id="projBlockSize" type="number" min="8" max="20" class="w-full bg-white/5 border border-borderc rounded-xl px-3 py-2 focus-ring" />
-            </div>
-          </div>
-          <div>
-            <div class="text-sm text-textdim">SRS Intervals (days, comma-separated)</div>
-            <input id="projSRS" class="w-full bg-white/5 border border-borderc rounded-xl px-3 py-2 focus-ring" />
-          </div>
-          <div class="flex flex-wrap gap-2">
-            <button id="btnProjSave" class="focus-ring px-3 py-1.5 rounded-xl bg-primary/20 hover:bg-primary/30 border border-borderc text-sm">Save</button>
-            <button id="btnAddWords" class="focus-ring px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm">Add Words</button>
-            <button id="btnAutoSplit" class="focus-ring px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm">Auto Split / Rebuild</button>
-            <button id="btnReschedule" class="focus-ring px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm">Re-schedule</button>
-            <button id="btnExportProject" class="focus-ring px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm">Export JSON</button>
-            <button id="btnDeleteProject" class="focus-ring px-3 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-borderc text-sm">Delete</button>
-          </div>
-          <div class="text-sm text-textdim" id="projStats"></div>
-        </div>
-
-        <!-- Right: Blocks & Words -->
-        <div class="lg:col-span-2 space-y-6">
-          <div class="rounded-2xl border border-borderc bg-panel p-4">
-            <div class="flex items-center justify-between mb-3">
-              <h3 class="font-semibold">Blocks</h3>
-              <div class="text-xs text-textdim" id="blocksSummary"></div>
-            </div>
-            <div id="blocksList" class="grid sm:grid-cols-2 xl:grid-cols-3 gap-3"></div>
-            <div id="blocksEmpty" class="text-sm text-textdim">No blocks yet. Click <b>Auto Split</b> to generate.</div>
-          </div>
-
-          <div class="rounded-2xl border border-borderc bg-panel p-4">
-            <div class="flex items-center justify-between mb-3">
-              <h3 class="font-semibold">Words</h3>
-              <input id="wordSearch" placeholder="Search words..." class="bg-white/5 border border-borderc rounded-xl px-3 py-1.5 text-sm focus-ring" />
-            </div>
-            <div class="overflow-auto max-h-[420px] no-scrollbar">
-              <table class="w-full text-sm">
-                <thead class="sticky top-0 bg-bg2">
-                  <tr class="text-left text-textdim">
-                    <th class="py-2 pr-2">#</th>
-                    <th class="py-2 pr-2">Word</th>
-                    <th class="py-2 pr-2">Meaning</th>
-                    <th class="py-2 pr-2">Example/Note</th>
-                    <th class="py-2 pr-2">Tags</th>
-                    <th class="py-2 pr-2">Status</th>
-                    <th class="py-2 pr-2">Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="wordsTable"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- FLASHCARDS VIEW -->
-    <section id="view-flashcards" class="space-y-6 hidden">
-      <div class="flex items-center justify-between">
-        <h2 class="text-xl font-semibold">Flashcards</h2>
-        <div class="flex items-center gap-2 text-sm">
-          <label class="flex items-center gap-2"><input id="typingMode" type="checkbox" class="accent-primary"> Typing Test</label>
-        </div>
-      </div>
-
-      <div class="rounded-2xl border border-borderc bg-panel p-4">
-        <div class="flex flex-wrap items-center gap-2 mb-4">
-          <button id="startReviewDue" class="focus-ring px-3 py-1.5 rounded-xl bg-primary/20 hover:bg-primary/30 border border-borderc text-sm">Start Review (Due Today)</button>
-          <select id="selectProjectForNew" class="bg-white/5 border border-borderc rounded-xl px-3 py-1.5 text-sm"></select>
-          <select id="selectBlockForNew" class="bg-white/5 border border-borderc rounded-xl px-3 py-1.5 text-sm"></select>
-          <button id="startNewBlock" class="focus-ring px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm">Start New Block</button>
-          <div id="sessionInfo" class="ml-auto text-xs text-textdim"></div>
-        </div>
-
-        <div id="flashArea" class="max-w-2xl mx-auto">
-          <div id="cardWrap" class="flip rounded-2xl border border-borderc bg-bg2 p-4">
-            <div class="flip-inner" id="flipInner">
-              <div class="flip-front flex flex-col items-center justify-center p-4 gap-3">
-                <div class="text-xs text-textdim">Front</div>
-                <div class="text-2xl font-semibold text-center" id="cardFront">–</div>
-                <div id="typingWrap" class="hidden w-full max-w-sm">
-                  <input id="typingInput" class="w-full bg-white/5 border border-borderc rounded-xl px-3 py-2 focus-ring" placeholder="Type the meaning..." />
+<body class="animated-bg text-white min-h-screen">
+    <!-- Header -->
+    <header class="glass-strong sticky top-0 z-50 border-b border-white/20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-4">
+                    <h1 class="text-2xl font-bold gradient-text">✨ Vocab Master</h1>
+                    <button id="newProjectBtn" class="btn-primary px-4 py-2 rounded-xl text-sm font-medium focus-ring" aria-label="Create new vocabulary project">
+                        + New Project
+                    </button>
                 </div>
-              </div>
-              <div class="flip-back flex flex-col items-center justify-center p-4 gap-3">
-                <div class="text-xs text-textdim">Back</div>
-                <div class="text-lg text-center" id="cardBack">–</div>
-              </div>
+                <div class="flex-1 max-w-md mx-4">
+                    <div id="pressureBar" class="h-3 bg-white/10 rounded-full overflow-hidden">
+                        <div id="pressureProgress" class="h-full pressure-bar progress-animated" style="width: 0%"></div>
+                    </div>
+                    <div id="pressureText" class="text-xs text-white/60 text-center mt-1">No upcoming deadlines</div>
+                </div>
             </div>
-          </div>
-          <div class="flex flex-wrap items-center gap-2 mt-4">
-            <button id="btnFlip" class="focus-ring px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc">Flip (Space)</button>
-            <button id="btnForgot" class="focus-ring px-4 py-2 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-borderc">I Forgot (1)</button>
-            <button id="btnRemember" class="focus-ring px-4 py-2 rounded-xl bg-green-500/20 hover:bg-green-500/30 border border-borderc">I Remember (2)</button>
-            <button id="btnPrev" class="focus-ring px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc">Prev</button>
-            <button id="btnNext" class="focus-ring px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc">Next (Enter)</button>
-            <div class="ml-auto text-xs text-textdim" id="progressText">0 / 0</div>
-          </div>
         </div>
-      </div>
-      <div class="text-xs text-textdim">Shortcuts: Space = Flip, Enter = Next, 1 = Forgot, 2 = Remember</div>
-    </section>
+    </header>
 
-    <!-- SETTINGS VIEW -->
-    <section id="view-settings" class="space-y-6 hidden">
-      <h2 class="text-xl font-semibold">Settings</h2>
-      <div class="rounded-2xl border border-borderc bg-panel p-4 space-y-4 max-w-xl">
-        <div>
-          <div class="text-sm text-textdim">Default Block Size</div>
-          <input id="setBlockSize" type="number" min="8" max="20" class="bg-white/5 border border-borderc rounded-xl px-3 py-2 focus-ring" />
-        </div>
-        <div>
-          <div class="text-sm text-textdim">Default SRS (days, comma-separated)</div>
-          <input id="setSRS" class="bg-white/5 border border-borderc rounded-xl px-3 py-2 focus-ring" />
-        </div>
-        <div>
-          <div class="text-sm text-textdim">Daily Reminder Time (placeholder)</div>
-          <input id="setReminder" type="time" class="bg-white/5 border border-borderc rounded-xl px-3 py-2 focus-ring" />
-        </div>
-        <div class="flex gap-2">
-          <button id="btnSaveSettings" class="focus-ring px-3 py-1.5 rounded-xl bg-primary/20 hover:bg-primary/30 border border-borderc text-sm">Save Settings</button>
-          <button id="btnResetData" class="focus-ring px-3 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-borderc text-sm">Reset All Data</button>
-        </div>
-      </div>
-    </section>
-
-  </main>
-
-  <!-- MODALS -->
-  <div id="modalBackdrop" class="hidden fixed inset-0 z-40 bg-black/60"></div>
-
-  <!-- New Project Modal -->
-  <div id="modalProject" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="w-full max-w-2xl rounded-2xl border border-borderc bg-bg2">
-      <div class="p-4 border-b border-borderc flex items-center justify-between">
-        <h3 class="font-semibold">Create Project</h3>
-        <button class="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10" data-close="modalProject">✕</button>
-      </div>
-      <div class="p-4 space-y-3">
-        <div>
-          <div class="text-sm text-textdim">Title</div>
-          <input id="npTitle" class="w-full bg-white/5 border border-borderc rounded-xl px-3 py-2 focus-ring" placeholder="Assignment 1" />
-        </div>
-        <div>
-          <div class="text-sm text-textdim">Deadline</div>
-          <input id="npDeadline" type="date" class="w-full bg-white/5 border border-borderc rounded-xl px-3 py-2 focus-ring" />
-        </div>
-        <div>
-          <div class="text-sm text-textdim">Block Size (default 12)</div>
-          <input id="npBlock" type="number" min="8" max="20" value="12" class="w-full bg-white/5 border border-borderc rounded-xl px-3 py-2 focus-ring" />
-        </div>
-        <div>
-          <div class="text-sm text-textdim">Words (one per line or use | to add meaning/example/tags)</div>
-          <textarea id="npWords" rows="6" class="w-full bg-white/5 border border-borderc rounded-xl px-3 py-2 focus-ring" placeholder="exacerbate | make worse; intensify | His comment exacerbated the conflict. | formal, academic\nalleviate | make less severe | This drug alleviates pain. | common"></textarea>
-        </div>
-      </div>
-      <div class="p-4 border-t border-borderc flex items-center justify-end gap-2">
-        <button class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm" data-close="modalProject">Cancel</button>
-        <button id="npCreate" class="px-3 py-1.5 rounded-xl bg-primary/20 hover:bg-primary/30 border border-borderc text-sm">Create</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Add Words Modal -->
-  <div id="modalWords" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="w-full max-w-2xl rounded-2xl border border-borderc bg-bg2">
-      <div class="p-4 border-b border-borderc flex items-center justify-between">
-        <h3 class="font-semibold">Add Words</h3>
-        <button class="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10" data-close="modalWords">✕</button>
-      </div>
-      <div class="p-4 space-y-3">
-        <div>
-          <div class="text-sm text-textdim">Paste words (one per line). Use "word | meaning | example(optional) | tags(optional)"</div>
-          <textarea id="awText" rows="8" class="w-full bg-white/5 border border-borderc rounded-xl px-3 py-2 focus-ring" placeholder="vulnerable | easily hurt | He felt vulnerable after the loss. | common"></textarea>
-        </div>
-      </div>
-      <div class="p-4 border-t border-borderc flex items-center justify-end gap-2">
-        <button class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm" data-close="modalWords">Cancel</button>
-        <button id="awAdd" class="px-3 py-1.5 rounded-xl bg-primary/20 hover:bg-primary/30 border border-borderc text-sm">Add</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Import Modal -->
-  <div id="modalImport" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="w-full max-w-xl rounded-2xl border border-borderc bg-bg2">
-      <div class="p-4 border-b border-borderc flex items-center justify-between">
-        <h3 class="font-semibold">Import Data</h3>
-        <button class="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10" data-close="modalImport">✕</button>
-      </div>
-      <div class="p-4 space-y-3">
-        <div class="text-sm text-textdim">Paste exported JSON here (full app or single project JSON).</div>
-        <textarea id="impText" rows="10" class="w-full bg-white/5 border border-borderc rounded-xl px-3 py-2 focus-ring"></textarea>
-      </div>
-      <div class="p-4 border-t border-borderc flex items-center justify-end gap-2">
-        <button class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm" data-close="modalImport">Cancel</button>
-        <button id="impApply" class="px-3 py-1.5 rounded-xl bg-primary/20 hover:bg-primary/30 border border-borderc text-sm">Import</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Confirm Modal -->
-  <div id="modalConfirm" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="w-full max-w-md rounded-2xl border border-borderc bg-bg2">
-      <div class="p-4 border-b border-borderc font-semibold">Please Confirm</div>
-      <div class="p-4 text-sm" id="confirmText">Are you sure?</div>
-      <div class="p-4 border-t border-borderc flex items-center justify-end gap-2">
-        <button class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm" data-close="modalConfirm">Cancel</button>
-        <button id="confirmYes" class="px-3 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-borderc text-sm">Yes</button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    // ==========================
-    // Utils
-    // ==========================
-    const LS_KEY = 'vocab_app_v1';
-
-    const $ = (sel, root=document) => root.querySelector(sel);
-    const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
-
-    const uid = (p='id') => `${p}_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
-
-    const todayStr = () => formatDate(new Date());
-    const parseDate = (s) => new Date(s + 'T00:00:00');
-    function addDays(dateStr, n){
-      const d = parseDate(dateStr); d.setDate(d.getDate()+n); return formatDate(d);
-    }
-    function formatDate(d){
-      const y = d.getFullYear();
-      const m = String(d.getMonth()+1).padStart(2,'0');
-      const da = String(d.getDate()).padStart(2,'0');
-      return `${y}-${m}-${da}`;
-    }
-    function isSameDay(a,b){ return a===b; }
-    function daysBetween(a,b){ return Math.round((parseDate(b)-parseDate(a))/(1000*60*60*24)); }
-
-    function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
-
-    function download(filename, text){
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(new Blob([text], {type:'application/json'}));
-      a.download = filename; a.click(); URL.revokeObjectURL(a.href);
-    }
-
-    // ==========================
-    // Storage & State
-    // ==========================
-    let app = null; // in-memory state
-
-    function load(){
-      try{
-        const raw = localStorage.getItem(LS_KEY);
-        if(!raw){
-          seed();
-        } else {
-          app = JSON.parse(raw);
-        }
-      }catch(e){ console.error('Load error', e); seed(); }
-    }
-    function save(){
-      try{
-        localStorage.setItem(LS_KEY, JSON.stringify(app));
-        updateDeadlineBar();
-      }catch(e){ console.error('Save error', e); alert('Failed to save. LocalStorage may be full.'); }
-    }
-
-    function seed(){
-      const t = new Date();
-      const d1 = formatDate(new Date(t.getFullYear(), t.getMonth(), t.getDate()+7));
-      const d2 = formatDate(new Date(t.getFullYear(), t.getMonth(), t.getDate()+14));
-      const makeWords = (n)=> Array.from({length:n}, (_,i)=>({
-        id: uid('w'), term: `Word ${i+1}`, meaning: `Meaning ${i+1}`,
-        example: `Example sentence for word ${i+1}.`, tags: ['sample'],
-        srs: { intervalIndex: -1, nextReview: null, correctStreak: 0 },
-        status: 'new'
-      }));
-      app = {
-        settings: { defaultBlockSize: 12, defaultSRS: [1,2,5,10,30], theme:'dark', language:'en' },
-        projects: [
-          { id: uid('proj'), title:'Assignment 1', deadline:d1, words: makeWords(24), blocks: [], progress:{total:24, learned:0, mastered:0}, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-          { id: uid('proj'), title:'Assignment 2', deadline:d2, words: makeWords(24), blocks: [], progress:{total:24, learned:0, mastered:0}, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
-        ],
-        streak: { current:0, best:0, lastActive: null }
-      };
-      // auto split & schedule samples
-      app.projects.forEach(p=>{ autoSplit(p, app.settings.defaultBlockSize); autoSchedule(p); recomputeProgress(p); });
-      save();
-    }
-
-    // ==========================
-    // Core Logic: Projects, Blocks, Scheduler, SRS
-    // ==========================
-    function getProject(id){ return app.projects.find(p=>p.id===id); }
-
-    function recomputeProgress(project){
-      const total = project.words.length;
-      const learned = project.words.filter(w=>w.status!=='new').length;
-      const mastered = project.words.filter(w=>w.status==='mastered').length;
-      project.progress = { total, learned, mastered };
-    }
-
-    function autoSplit(project, blockSize){
-      const B = clamp(Number(blockSize)||12, 8, 20);
-      const words = project.words.map(w=>w.id);
-      const blocks = [];
-      for(let i=0;i<words.length;i+=B){
-        blocks.push({ id: uid('b'), title: `Block ${blocks.length+1}`, wordIds: words.slice(i,i+B), scheduledDate: null });
-      }
-      project.blocks = blocks;
-      project.updatedAt = new Date().toISOString();
-    }
-
-    function autoSchedule(project){
-      const today = todayStr();
-      const end = project.deadline;
-      if(!end){ return; }
-      const totalBlocks = project.blocks.length;
-      if(totalBlocks===0) return;
-      let days = daysBetween(today, end);
-      if(days < 0){ // deadline in the past: schedule all today
-        project.blocks.forEach(b=> b.scheduledDate = today);
-        return;
-      }
-      // distribute blocks from today to deadline inclusive
-      const slots = days + 1; // number of days including today
-      project.blocks.forEach((b,idx)=>{
-        const dayOffset = Math.floor(idx * (slots/totalBlocks));
-        b.scheduledDate = addDays(today, dayOffset);
-      });
-      project.updatedAt = new Date().toISOString();
-    }
-
-    function parseWordsText(text){
-      const lines = text.split(/\n+/).map(s=>s.trim()).filter(Boolean);
-      const words = [];
-      for(const line of lines){
-        const parts = line.split('|').map(x=>x.trim());
-        const term = parts[0]||''; if(!term) continue;
-        const meaning = parts[1]||''; const example = parts[2]||'';
-        const tags = (parts[3]||'').split(',').map(s=>s.trim()).filter(Boolean);
-        words.push({ id: uid('w'), term, meaning, example, tags, srs:{ intervalIndex:-1, nextReview:null, correctStreak:0 }, status:'new' });
-      }
-      return words;
-    }
-
-    function scheduleTodayData(){
-      const today = todayStr();
-      const learn = [];
-      const review = [];
-      app.projects.forEach(p=>{
-        p.blocks.forEach(b=>{ if(b.scheduledDate === today){ learn.push({projectId:p.id, blockId:b.id}); } });
-        p.words.forEach(w=>{
-          if(w.srs && w.srs.nextReview && w.status!=='new'){
-            if(parseDate(w.srs.nextReview) <= parseDate(today)){ review.push({projectId:p.id, wordId:w.id}); }
-          }
-        });
-      });
-      return {learn, review};
-    }
-
-    function getProjectOfBlock(blockId){
-      for(const p of app.projects){ if(p.blocks.some(b=>b.id===blockId)) return p; }
-      return null;
-    }
-
-    // SRS update
-    function getSRSIntervals(project){
-      const arr = (project && project.srsCustom) ? project.srsCustom : app.settings.defaultSRS;
-      return Array.isArray(arr) ? arr : [1,2,5,10,30];
-    }
-
-    function markRemember(project, word){
-      const intervals = getSRSIntervals(project);
-      if(word.status==='new'){
-        word.status = 'learning';
-        word.srs.intervalIndex = 0;
-        word.srs.correctStreak = 1;
-        word.srs.nextReview = addDays(todayStr(), intervals[0]);
-      } else {
-        word.srs.intervalIndex = clamp((word.srs.intervalIndex||0)+1, 0, intervals.length-1);
-        word.srs.correctStreak = (word.srs.correctStreak||0) + 1;
-        word.srs.nextReview = addDays(todayStr(), intervals[word.srs.intervalIndex]);
-        if(word.srs.intervalIndex === intervals.length-1){ word.status = 'mastered'; }
-        else if(word.status==='learning'){ word.status = 'review'; }
-      }
-    }
-
-    function markForgot(project, word){
-      const intervals = getSRSIntervals(project);
-      if(word.status==='new'){
-        word.srs.intervalIndex = 0;
-        word.srs.correctStreak = 0;
-        word.srs.nextReview = todayStr();
-      } else {
-        word.srs.intervalIndex = clamp((word.srs.intervalIndex||0)-1, 0, intervals.length-1);
-        word.srs.correctStreak = 0;
-        word.srs.nextReview = addDays(todayStr(), intervals[word.srs.intervalIndex]);
-        if(word.status==='mastered' && word.srs.intervalIndex < intervals.length-1){ word.status = 'review'; }
-      }
-    }
-
-    function bumpStreak(){
-      const today = todayStr();
-      const s = app.streak;
-      if(s.lastActive === today) return;
-      if(!s.lastActive){ s.current = 1; s.best = Math.max(s.best||0, s.current); s.lastActive = today; return; }
-      const diff = daysBetween(s.lastActive, today);
-      if(diff === 1){ s.current = (s.current||0) + 1; }
-      else { s.current = 1; }
-      s.best = Math.max(s.best||0, s.current);
-      s.lastActive = today;
-    }
-
-    // ==========================
-    // Rendering
-    // ==========================
-    function showView(name){
-      const ids = ['dashboard','today','project','flashcards','settings'];
-      ids.forEach(id=>{
-        const el = document.getElementById('view-'+id);
-        if(!el) return;
-        if(id===name) el.classList.remove('hidden'); else el.classList.add('hidden');
-      });
-      // highlight nav
-      $$('.navtab').forEach(b=>{
-        if(b.dataset.nav===name) b.classList.add('ring-1','ring-primary/60');
-        else b.classList.remove('ring-1','ring-primary/60');
-      });
-    }
-
-    function renderDeadlineBar(){ updateDeadlineBar(); }
-    function updateDeadlineBar(){
-      const bar = document.getElementById('deadlineBar');
-      if(!bar) return;
-      if(!app.projects.length){ bar.style.width = '0%'; return; }
-      const today = todayStr();
-      // nearest upcoming deadline
-      const upcoming = app.projects
-        .map(p=>p.deadline)
-        .filter(Boolean)
-        .sort((a,b)=> parseDate(a)-parseDate(b))[0];
-      if(!upcoming){ bar.style.width='0%'; return; }
-      const total = 30; // consider 30 days window
-      const remain = clamp(daysBetween(today, upcoming), 0, total);
-      const pct = 100 - (remain/total)*100; // more filled when closer
-      bar.style.width = pct.toFixed(0)+'%';
-    }
-
-    function renderDashboard(){
-      const wrap = document.getElementById('dashboardProjects');
-      wrap.innerHTML = '';
-      if(app.projects.length===0){ $('#emptyDash').classList.remove('hidden'); return; }
-      $('#emptyDash').classList.add('hidden');
-
-      app.projects.forEach(p=>{
-        recomputeProgress(p);
-        const pctMastered = p.progress.total ? Math.round((p.progress.mastered/p.progress.total)*100) : 0;
-        const card = document.createElement('div');
-        card.className = 'rounded-2xl border border-borderc bg-panel p-4 flex flex-col gap-3';
-        card.innerHTML = `
-          <div class="flex items-start justify-between gap-2">
-            <div>
-              <div class="font-semibold">${escapeHTML(p.title)}</div>
-              <div class="text-xs text-textdim">${p.progress.mastered}/${p.progress.total} mastered • ${p.blocks.length} blocks</div>
+    <!-- Navigation -->
+    <nav class="glass border-b border-white/10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex space-x-8">
+                <button class="nav-tab active py-4 px-2 relative font-medium transition-all" data-view="dashboard">
+                    Dashboard
+                    <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-violet-500 to-pink-500 rounded-full"></div>
+                </button>
+                <button class="nav-tab py-4 px-2 relative font-medium transition-all hover:text-white/80" data-view="today">
+                    Today
+                </button>
+                <button class="nav-tab py-4 px-2 relative font-medium transition-all hover:text-white/80" data-view="project" style="display: none;">
+                    Project Detail
+                </button>
+                <button class="nav-tab py-4 px-2 relative font-medium transition-all hover:text-white/80" data-view="flashcards">
+                    Flashcards
+                </button>
+                <button class="nav-tab py-4 px-2 relative font-medium transition-all hover:text-white/80" data-view="settings">
+                    Settings
+                </button>
             </div>
-            <div class="text-xs px-2 py-1 rounded bg-white/10 border border-borderc">Due ${escapeHTML(p.deadline||'-')}</div>
-          </div>
-          <div class="h-2 rounded bg-white/5 overflow-hidden">
-            <div class="h-full bg-gradient-to-r from-primary to-secondary" style="width:${pctMastered}%"></div>
-          </div>
-          <div class="flex flex-wrap gap-2 mt-1">
-            <button class="px-3 py-1.5 rounded-xl bg-primary/20 hover:bg-primary/30 border border-borderc text-sm openProj" data-id="${p.id}">Open</button>
-            <button class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm quickAdd" data-id="${p.id}">Quick Add Words</button>
-            <button class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm exportProj" data-id="${p.id}">Export</button>
-            <button class="px-3 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-borderc text-sm deleteProj" data-id="${p.id}">Delete</button>
-          </div>
-        `;
-        wrap.appendChild(card);
-      });
+        </div>
+    </nav>
 
-      // Attach events
-      $$('.openProj').forEach(b=> b.addEventListener('click', ()=> openProject(b.dataset.id)));
-      $$('.quickAdd').forEach(b=> b.addEventListener('click', ()=> openAddWordsModal(b.dataset.id)));
-      $$('.exportProj').forEach(b=> b.addEventListener('click', ()=> exportProject(b.dataset.id)));
-      $$('.deleteProj').forEach(b=> b.addEventListener('click', ()=> confirmDeleteProject(b.dataset.id)));
-    }
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Dashboard View -->
+        <div id="dashboardView" class="view">
+            <!-- Empty State -->
+            <div id="emptyState" class="hidden text-center py-16">
+                <div class="hero-illo mb-8"></div>
+                <h2 class="text-3xl font-bold mb-4 gradient-text">Welcome to Vocab Master!</h2>
+                <div class="max-w-md mx-auto mb-6 space-y-2 text-white/70">
+                    <p>• 🎯 Smart spaced repetition system</p>
+                    <p>• 📅 Automatic deadline scheduling</p>
+                    <p>• 🧠 Adaptive learning blocks</p>
+                </div>
+                <div class="max-w-lg mx-auto mb-8 glass rounded-xl p-4 text-sm text-white/60">
+                    <p class="mb-2"><strong>Getting Started:</strong></p>
+                    <p>Paste words in format: <code class="bg-white/10 px-2 py-1 rounded">word | meaning | example | tags</code></p>
+                </div>
+                <button id="createFirstProjectBtn" class="btn-primary px-8 py-4 rounded-2xl text-lg font-semibold animate-pulse-soft focus-ring" aria-label="Create your first vocabulary project">
+                    Create your first project
+                </button>
+            </div>
 
-    let currentProjectId = null;
+            <!-- Projects List -->
+            <div id="projectsSection" class="hidden">
+                <div class="flex justify-between items-center mb-8">
+                    <h2 class="text-3xl font-bold gradient-text">Your Projects</h2>
+                    <button id="createProjectBtn" class="btn-primary px-6 py-3 rounded-xl font-medium focus-ring" aria-label="Create new vocabulary project">
+                        Create Project
+                    </button>
+                </div>
+                <div id="projectsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Projects will be rendered here -->
+                </div>
+            </div>
+        </div>
 
-    function openProject(id){
-      const p = getProject(id); if(!p) return;
-      currentProjectId = id;
-      $('[data-nav="project"]').classList.remove('hidden');
-      $('[data-nav="project"]').click();
-      renderProject();
-    }
+        <!-- Today View -->
+        <div id="todayView" class="view hidden">
+            <h2 class="text-3xl font-bold mb-8 gradient-text">Today's Tasks</h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Learn Today -->
+                <div class="glass rounded-2xl p-6 card-hover">
+                    <div class="flex items-center mb-4">
+                        <span class="text-2xl mr-3">🌱</span>
+                        <h3 class="text-xl font-semibold text-green-400">Learn Today</h3>
+                    </div>
+                    <div id="learnTodayCount" class="text-sm text-white/60 mb-4">0 new words</div>
+                    <div id="learnTodayList" class="space-y-3">
+                        <!-- Learn tasks will be rendered here -->
+                    </div>
+                </div>
 
-    function renderProject(){
-      const p = getProject(currentProjectId); if(!p) return;
-      $('#projTitle').textContent = p.title;
-      $('#projDeadlineBadge').textContent = 'Deadline: '+(p.deadline||'-');
-      $('#projTitleInput').value = p.title;
-      $('#projDeadlineInput').value = p.deadline||'';
-      $('#projBlockSize').value = p.blockSize || app.settings.defaultBlockSize;
-      $('#projSRS').value = (p.srsCustom && Array.isArray(p.srsCustom) ? p.srsCustom : app.settings.defaultSRS).join(',');
+                <!-- Review Today -->
+                <div class="glass rounded-2xl p-6 card-hover">
+                    <div class="flex items-center mb-4">
+                        <span class="text-2xl mr-3">🔄</span>
+                        <h3 class="text-xl font-semibold text-cyan-400">Review Today</h3>
+                    </div>
+                    <div id="reviewTodayCount" class="text-sm text-white/60 mb-4">0 words to review</div>
+                    <div id="reviewTodayList" class="space-y-3">
+                        <!-- Review tasks will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        </div>
 
-      recomputeProgress(p);
-      $('#projStats').textContent = `${p.progress.learned}/${p.progress.total} learned • ${p.progress.mastered} mastered`;
+        <!-- Project Detail View -->
+        <div id="projectView" class="view hidden">
+            <div class="mb-8">
+                <button id="backToDashboard" class="text-cyan-400 hover:text-cyan-300 mb-4 transition-colors">← Back to Dashboard</button>
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h2 id="projectTitle" class="text-3xl font-bold mb-2 gradient-text"></h2>
+                        <div id="projectMeta" class="text-white/60"></div>
+                    </div>
+                    <div class="flex space-x-3">
+                        <button id="addWordsBtn" class="btn-secondary px-4 py-2 rounded-xl focus-ring">Add Words</button>
+                        <button id="exportProjectBtn" class="btn-secondary px-4 py-2 rounded-xl focus-ring">Export</button>
+                        <button id="deleteProjectBtn" class="bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 px-4 py-2 rounded-xl transition-all focus-ring">Delete</button>
+                    </div>
+                </div>
+            </div>
 
-      // Blocks
-      const bl = $('#blocksList'); bl.innerHTML='';
-      if(!p.blocks.length) $('#blocksEmpty').classList.remove('hidden'); else $('#blocksEmpty').classList.add('hidden');
-      $('#blocksSummary').textContent = `${p.blocks.length} blocks`;
-      p.blocks.forEach((b,idx)=>{
-        const el = document.createElement('div');
-        el.className = 'rounded-xl border border-borderc bg-white/5 p-3 space-y-2';
-        el.innerHTML = `
-          <div class="flex items-center justify-between">
-            <div class="font-medium">${escapeHTML(b.title)}</div>
-            <div class="text-xs px-2 py-1 rounded bg-white/10 border border-borderc">${b.scheduledDate || '-'}</div>
-          </div>
-          <div class="text-xs text-textdim">${b.wordIds.length} words</div>
-          <div class="flex gap-2">
-            <button class="px-2 py-1 rounded-lg bg-primary/20 hover:bg-primary/30 border border-borderc text-xs startBlock" data-bid="${b.id}">Start</button>
-          </div>
-        `;
-        bl.appendChild(el);
-      });
-      $$('.startBlock').forEach(btn=> btn.addEventListener('click', ()=> startNewBlockSession(p.id, btn.dataset.bid)));
+            <!-- Project Settings -->
+            <div class="glass rounded-2xl p-6 mb-8 card-hover">
+                <h3 class="text-lg font-semibold mb-4 flex items-center">
+                    <span class="mr-2">⚙️</span>
+                    Settings
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Block Size</label>
+                        <input id="blockSizeInput" type="number" min="8" max="20" class="w-full glass rounded-xl px-4 py-3 focus-ring">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">SRS Intervals (days)</label>
+                        <input id="srsIntervalsInput" type="text" placeholder="1,2,5,10,30" class="w-full glass rounded-xl px-4 py-3 focus-ring">
+                    </div>
+                    <div class="flex items-end">
+                        <button id="rebuildBlocksBtn" class="btn-primary px-4 py-3 rounded-xl w-full focus-ring">Rebuild Blocks</button>
+                    </div>
+                </div>
+            </div>
 
-      // Words table
-      const tbody = $('#wordsTable'); tbody.innerHTML='';
-      const q = ($('#wordSearch').value||'').toLowerCase();
-      p.words.forEach((w, i)=>{
-        if(q && !(`${w.term} ${w.meaning} ${w.example} ${(w.tags||[]).join(' ')}`.toLowerCase().includes(q))) return;
-        const tr = document.createElement('tr');
-        tr.className = 'border-t border-borderc/40';
-        tr.innerHTML = `
-          <td class="py-2 pr-2 text-textdim">${i+1}</td>
-          <td class="py-2 pr-2">${escapeHTML(w.term)}</td>
-          <td class="py-2 pr-2">${escapeHTML(w.meaning||'')}</td>
-          <td class="py-2 pr-2">${escapeHTML(w.example||'')}</td>
-          <td class="py-2 pr-2 text-textdim">${(w.tags||[]).map(t=>`<span class='px-2 py-0.5 rounded bg-white/10 border border-borderc mr-1'>${escapeHTML(t)}</span>`).join('')}</td>
-          <td class="py-2 pr-2 text-textdim">${w.status}</td>
-          <td class="py-2 pr-2">
-            <button class="px-2 py-1 rounded bg-white/5 hover:bg-white/10 border border-borderc text-xs editWord" data-wid="${w.id}">Edit</button>
-            <button class="px-2 py-1 rounded bg-red-500/20 hover:bg-red-500/30 border border-borderc text-xs delWord" data-wid="${w.id}">Delete</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-      $$('#wordSearch').forEach(inp=> inp.oninput = ()=> renderProject());
-      $$('.editWord').forEach(btn=> btn.addEventListener('click', ()=> editWordPrompt(p.id, btn.dataset.wid)));
-      $$('.delWord').forEach(btn=> btn.addEventListener('click', ()=> deleteWord(p.id, btn.dataset.wid)));
-    }
+            <!-- Words Table -->
+            <div class="glass rounded-2xl p-6 mb-8 card-hover">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold flex items-center">
+                        <span class="mr-2">📝</span>
+                        Words
+                    </h3>
+                    <input id="searchWords" type="text" placeholder="Search words..." class="glass rounded-xl px-4 py-2 w-64 focus-ring">
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="sticky top-0 glass-strong">
+                            <tr class="border-b border-white/20">
+                                <th class="text-left py-3 px-2">#</th>
+                                <th class="text-left py-3 px-2">Word</th>
+                                <th class="text-left py-3 px-2">Meaning</th>
+                                <th class="text-left py-3 px-2">Example</th>
+                                <th class="text-left py-3 px-2">Status</th>
+                                <th class="text-left py-3 px-2">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="wordsTableBody">
+                            <!-- Words will be rendered here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
-    function escapeHTML(str){ return (str||'').replace(/[&<>\"]/g, s=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[s]) ); }
+            <!-- Blocks -->
+            <div class="glass rounded-2xl p-6 card-hover">
+                <h3 class="text-lg font-semibold mb-4 flex items-center">
+                    <span class="mr-2">🧩</span>
+                    Blocks
+                </h3>
+                <div id="blocksList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Blocks will be rendered here -->
+                </div>
+            </div>
+        </div>
 
-    // TODAY view
-    function renderToday(){
-      const {learn, review} = scheduleTodayData();
-      $('#todayLearnCount').textContent = `${learn.length} block(s)`;
-      $('#todayReviewCount').textContent = `${review.length} word(s)`;
+        <!-- Flashcards View -->
+        <div id="flashcardsView" class="view hidden">
+            <div class="max-w-2xl mx-auto">
+                <div class="flex justify-between items-center mb-8">
+                    <h2 class="text-3xl font-bold gradient-text">Flashcards</h2>
+                    <div class="flex items-center gap-2 mb-4 toolbar-row">
+                        <div class="select-fix-wrap">
+                            <select id="selectBlockForFlashcards" class="glass rounded-xl px-4 py-2 focus-ring">
+                                <option value="new">New Words</option>
+                                <option value="review">Review Queue</option>
+                            </select>
+                        </div>
+                        <label class="flex items-center space-x-2 glass rounded-xl px-4 py-2">
+                            <input id="typingMode" type="checkbox" class="rounded focus-ring">
+                            <span>Typing Mode</span>
+                        </label>
+                    </div>
+                </div>
 
-      const learnList = $('#todayLearnList'); learnList.innerHTML='';
-      if(learn.length===0) $('#todayLearnEmpty').classList.remove('hidden'); else $('#todayLearnEmpty').classList.add('hidden');
-      learn.forEach(item=>{
-        const p = getProject(item.projectId); const b = p.blocks.find(x=>x.id===item.blockId);
-        const el = document.createElement('div');
-        el.className = 'rounded-xl border border-borderc bg-white/5 p-3 flex items-center justify-between';
-        el.innerHTML = `
-          <div><div class="font-medium">${escapeHTML(p.title)} • ${escapeHTML(b.title)}</div>
-          <div class="text-xs text-textdim">${b.wordIds.length} words</div></div>
-          <button class="px-3 py-1.5 rounded-xl bg-primary/20 hover:bg-primary/30 border border-borderc text-sm" data-pid="${p.id}" data-bid="${b.id}">Start</button>
-        `;
-        el.querySelector('button').addEventListener('click', ()=> startNewBlockSession(p.id, b.id));
-        learnList.appendChild(el);
-      });
+                <div id="flashcardContainer" class="glass-strong rounded-2xl p-8 min-h-96 flashcard-shell">
+                    <div id="noCards" class="text-center text-white/60 py-16">
+                        <div class="text-6xl mb-4">🎴</div>
+                        <p class="text-xl mb-4">No cards available</p>
+                        <p>Select a mode and start learning!</p>
+                    </div>
 
-      const reviewList = $('#todayReviewList'); reviewList.innerHTML='';
-      if(review.length===0) $('#todayReviewEmpty').classList.remove('hidden'); else $('#todayReviewEmpty').classList.add('hidden');
-      if(review.length){
-        const btn = document.createElement('button');
-        btn.className = 'px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-borderc text-sm';
-        btn.textContent = 'Start Review Now';
-        btn.addEventListener('click', startReviewDueSession);
-        const holder = document.createElement('div'); holder.appendChild(btn);
-        reviewList.appendChild(holder);
-      }
-    }
+                    <div id="flashcard" class="hidden">
+                        <div class="text-center mb-6">
+                            <span id="cardProgress" class="text-sm text-white/60 glass rounded-full px-3 py-1">1 / 10</span>
+                        </div>
 
-    // FLASHCARDS
-    let session = { mode:null, wordIds:[], idx:0, projectId:null };
+                        <div class="flip-card w-full h-64 mb-8">
+                            <div class="flip-card-inner relative w-full h-full">
+                                <div class="flip-card-front absolute w-full h-full glass rounded-2xl flex items-center justify-center p-6">
+                                    <div class="text-center">
+                                        <div id="cardWord" class="text-4xl font-bold mb-4 gradient-text"></div>
+                                        <div id="cardClue" class="text-white/60"></div>
+                                    </div>
+                                </div>
+                                <div class="flip-card-back absolute w-full h-full glass rounded-2xl flex items-center justify-center p-6">
+                                    <div class="text-center">
+                                        <div id="cardMeaning" class="text-2xl mb-4"></div>
+                                        <div id="cardExample" class="text-white/60 italic"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
-    function initFlashcardsSelectors(){
-      const selP = $('#selectProjectForNew');
-      selP.innerHTML = `<option value="">Select Project…</option>` + app.projects.map(p=>`<option value="${p.id}">${escapeHTML(p.title)}</option>`).join('');
-      $('#selectBlockForNew').innerHTML = `<option value="">Select Block…</option>`;
-      selP.onchange = ()=>{
-        const p = getProject(selP.value); const selB = $('#selectBlockForNew');
-        if(!p){ selB.innerHTML = `<option value="">Select Block…</option>`; return; }
-        selB.innerHTML = `<option value="">Select Block…</option>` + p.blocks.map(b=>`<option value="${b.id}">${escapeHTML(b.title)} (${b.wordIds.length})</option>`).join('');
-      }
-    }
+                        <div id="typingSection" class="hidden mb-6">
+                            <input id="typingInput" type="text" placeholder="Type the meaning..." class="w-full glass rounded-xl px-4 py-3 text-center text-lg focus-ring">
+                            <div id="typingFeedback" class="text-center mt-2 text-sm"></div>
+                        </div>
 
-    function startNewBlockSession(projectId, blockId){
-      const p = getProject(projectId); const b = p.blocks.find(x=>x.id===blockId);
-      if(!b){ alert('Block not found'); return; }
-      session = { mode:'new', wordIds:[...b.wordIds], idx:0, projectId:p.id };
-      bumpStreak(); save();
-      showView('flashcards');
-      initFlashcardsSelectors();
-      renderSessionCard();
-    }
+                        <div class="flex justify-center space-x-4 mb-6">
+                            <button id="forgotBtn" class="bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 px-6 py-3 rounded-xl transition-all focus-ring">
+                                I Forgot (1)
+                            </button>
+                            <button id="showBtn" class="btn-secondary px-6 py-3 rounded-xl focus-ring">
+                                Show (Space)
+                            </button>
+                            <button id="rememberBtn" class="bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 px-6 py-3 rounded-xl transition-all focus-ring">
+                                I Remember (2)
+                            </button>
+                        </div>
 
-    function startNewBlockFromSelectors(){
-      const pid = $('#selectProjectForNew').value; const bid = $('#selectBlockForNew').value;
-      if(!pid || !bid){ alert('Select project and block.'); return; }
-      startNewBlockSession(pid, bid);
-    }
+                        <div class="text-center text-sm text-white/50 glass rounded-xl p-3">
+                            <kbd class="bg-white/10 px-2 py-1 rounded">Space</kbd> to flip • 
+                            <kbd class="bg-white/10 px-2 py-1 rounded">Enter</kbd> for next • 
+                            <kbd class="bg-white/10 px-2 py-1 rounded">1</kbd> forgot • 
+                            <kbd class="bg-white/10 px-2 py-1 rounded">2</kbd> remember
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-    function startReviewDueSession(){
-      const due = scheduleTodayData().review; if(!due.length){ alert('No words due today.'); return; }
-      const wordIds = [];
-      due.forEach(item=>{
-        const p = getProject(item.projectId); const w = p.words.find(x=>x.id===item.wordId);
-        if(w) wordIds.push({pid:p.id, wid:w.id});
-      });
-      // Flatten but keep one project for updates per-word
-      session = { mode:'review', wordIds, idx:0, projectId:null };
-      bumpStreak(); save();
-      showView('flashcards');
-      initFlashcardsSelectors();
-      renderSessionCard();
-    }
+        <!-- Settings View -->
+        <div id="settingsView" class="view hidden">
+            <h2 class="text-3xl font-bold mb-8 gradient-text">Settings</h2>
+            
+            <div class="max-w-2xl space-y-6">
+                <div class="glass rounded-2xl p-6 card-hover">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center">
+                        <span class="mr-2">🎛️</span>
+                        Global Preferences
+                    </h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Default Block Size</label>
+                            <input id="defaultBlockSize" type="number" min="8" max="20" class="w-full glass rounded-xl px-4 py-3 focus-ring">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Default SRS Intervals (days)</label>
+                            <input id="defaultSRS" type="text" placeholder="1,2,5,10,30" class="w-full glass rounded-xl px-4 py-3 focus-ring">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Daily Reminder Time</label>
+                            <input type="time" class="w-full glass rounded-xl px-4 py-3 focus-ring" placeholder="Coming soon...">
+                            <p class="text-xs text-white/50 mt-1">Feature coming soon</p>
+                        </div>
+                    </div>
+                </div>
 
-    function currentWord(){
-      if(session.idx < 0 || session.idx >= session.wordIds.length) return null;
-      if(session.mode==='new'){
-        const p = getProject(session.projectId);
-        return p.words.find(w=> w.id === session.wordIds[session.idx]);
-      } else { // review
-        const ref = session.wordIds[session.idx];
-        const p = getProject(ref.pid);
-        return p.words.find(w=> w.id === ref.wid);
-      }
-    }
+                <div class="glass rounded-2xl p-6 card-hover">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center">
+                        <span class="mr-2">💾</span>
+                        Data Management
+                    </h3>
+                    <div class="space-y-4">
+                        <div class="flex space-x-4">
+                            <button id="importBtn" class="btn-secondary px-4 py-2 rounded-xl focus-ring">Import Data</button>
+                            <button id="exportAllBtn" class="btn-primary px-4 py-2 rounded-xl focus-ring">Export All</button>
+                        </div>
+                        <div class="border-t border-white/20 pt-4">
+                            <h4 class="text-red-400 font-medium mb-2 flex items-center">
+                                <span class="mr-2">⚠️</span>
+                                Danger Zone
+                            </h4>
+                            <button id="resetDataBtn" class="bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 px-4 py-2 rounded-xl transition-all focus-ring">
+                                Reset All Data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
 
-    function currentProject(){
-      if(session.mode==='new') return getProject(session.projectId);
-      if(session.mode==='review'){
-        const ref = session.wordIds[session.idx];
-        return ref ? getProject(ref.pid) : null;
-      }
-      return null;
-    }
+    <!-- Modals -->
+    <!-- New Project Modal -->
+    <div id="newProjectModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center z-50">
+        <div class="glass-strong rounded-2xl p-6 w-full max-w-2xl mx-4 animate-scale-in">
+            <h3 class="text-xl font-bold mb-4 gradient-text">Create New Project</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-2">Project Title</label>
+                    <input id="newProjectTitle" type="text" class="w-full glass rounded-xl px-4 py-3 focus-ring" placeholder="Enter project name...">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">Deadline</label>
+                    <input id="newProjectDeadline" type="date" class="w-full glass rounded-xl px-4 py-3 focus-ring">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">Words (one per line: word | meaning | example | tags)</label>
+                    <textarea id="newProjectWords" rows="10" class="w-full glass rounded-xl px-4 py-3 focus-ring" placeholder="exacerbate | make worse | His comment exacerbated the conflict | formal,academic"></textarea>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-4 mt-6">
+                <button id="cancelNewProject" class="btn-secondary px-4 py-2 rounded-xl focus-ring">Cancel</button>
+                <button id="createNewProject" class="btn-primary px-4 py-2 rounded-xl focus-ring">Create Project</button>
+            </div>
+        </div>
+    </div>
 
-    function renderSessionCard(){
-      $('#sessionInfo').textContent = `${session.mode ? session.mode.toUpperCase() : '-'} • ${session.idx+1}/${session.wordIds.length}`;
-      $('#progressText').textContent = `${session.idx+1} / ${session.wordIds.length}`;
-      const w = currentWord();
-      if(!w){ $('#cardFront').textContent='—'; $('#cardBack').textContent='—'; return; }
-      $('#flipInner').parentElement.classList.remove('flipped');
-      $('#cardFront').textContent = w.term || '—';
-      $('#cardBack').innerHTML = `<div class='text-base'>${escapeHTML(w.meaning||'(no meaning)')}</div>` + (w.example? `<div class='text-sm text-textdim mt-2'>${escapeHTML(w.example)}</div>`:'');
+    <!-- Add Words Modal -->
+    <div id="addWordsModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center z-50">
+        <div class="glass-strong rounded-2xl p-6 w-full max-w-2xl mx-4 animate-scale-in">
+            <h3 class="text-xl font-bold mb-4 gradient-text">Add Words</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-2">Words (one per line: word | meaning | example | tags)</label>
+                    <textarea id="addWordsText" rows="10" class="w-full glass rounded-xl px-4 py-3 focus-ring" placeholder="exacerbate | make worse | His comment exacerbated the conflict | formal,academic"></textarea>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-4 mt-6">
+                <button id="cancelAddWords" class="btn-secondary px-4 py-2 rounded-xl focus-ring">Cancel</button>
+                <button id="confirmAddWords" class="btn-primary px-4 py-2 rounded-xl focus-ring">Add Words</button>
+            </div>
+        </div>
+    </div>
 
-      const typing = $('#typingMode').checked;
-      $('#typingWrap').classList.toggle('hidden', !typing);
-      $('#typingInput').value = '';
-      if(typing) setTimeout(()=> $('#typingInput').focus(), 10);
-    }
+    <!-- Confirm Modal -->
+    <div id="confirmModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center z-50">
+        <div class="glass-strong rounded-2xl p-6 w-full max-w-md mx-4 animate-scale-in">
+            <h3 class="text-xl font-bold mb-4 gradient-text">Confirm Action</h3>
+            <p id="confirmMessage" class="text-white/80 mb-6"></p>
+            <div class="flex justify-end space-x-4">
+                <button id="cancelConfirm" class="btn-secondary px-4 py-2 rounded-xl focus-ring">Cancel</button>
+                <button id="confirmAction" class="bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 px-4 py-2 rounded-xl transition-all focus-ring">Confirm</button>
+            </div>
+        </div>
+    </div>
 
-    function flipCard(){ $('#cardWrap').classList.toggle('flipped'); }
+    <!-- Import Modal -->
+    <div id="importModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center z-50">
+        <div class="glass-strong rounded-2xl p-6 w-full max-w-2xl mx-4 animate-scale-in">
+            <h3 class="text-xl font-bold mb-4 gradient-text">Import Data</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-2">Select File or Paste JSON</label>
+                    <input id="importFile" type="file" accept=".json,.csv" class="w-full glass rounded-xl px-4 py-3 mb-2 focus-ring bg-white/5 text-white">
+                    <textarea id="importText" rows="10" class="w-full glass rounded-xl px-4 py-3 focus-ring bg-white/5 text-white" placeholder="Paste JSON data here..."></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">Import to:</label>
+                    <div class="select-wrapper">
+                        <select id="importTarget" class="w-full glass rounded-xl px-4 py-3 focus-ring bg-white/5 text-white">
+                            <option value="new">Create New Project</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-4 mt-6">
+                <button id="cancelImport" class="btn-secondary px-4 py-2 rounded-xl focus-ring">Cancel</button>
+                <button id="confirmImport" class="btn-primary px-4 py-2 rounded-xl focus-ring">Import</button>
+            </div>
+        </div>
+    </div>
 
-    function nextCard(){ if(session.idx < session.wordIds.length-1){ session.idx++; renderSessionCard(); } }
-    function prevCard(){ if(session.idx > 0){ session.idx--; renderSessionCard(); } }
+    <script>
+        // App Configuration
+        const APP_CONFIG = {
+            STORAGE_KEY: 'vocab_app_v1',
+            DEFAULT_SETTINGS: {
+                defaultBlockSize: 12,
+                defaultSRS: [1, 2, 5, 10, 30],
+                theme: 'dark',
+                language: 'en'
+            }
+        };
 
-    function onRemember(){
-      const p = currentProject(); const w = currentWord(); if(!w||!p) return;
-      // If typing mode is on, check answer before accepting
-      if($('#typingMode').checked){
-        const ans = ($('#typingInput').value||'').trim().toLowerCase();
-        const tgt = (w.meaning||'').trim().toLowerCase();
-        if(ans && !tgt.includes(ans) && !ans.includes(tgt)){
-          // not strict; allow contains either way
-          // mark as forgot instead
-          onForgot(); return;
+        // Date utilities module
+        const DateUtils = (() => {
+            return {
+                addDays: (date, days) => {
+                    const result = new Date(date);
+                    result.setDate(result.getDate() + days);
+                    return result;
+                },
+                formatYYYYMMDD: (date) => {
+                    return date.toISOString().split('T')[0];
+                },
+                isSameDay: (date1, date2) => {
+                    return DateUtils.formatYYYYMMDD(date1) === DateUtils.formatYYYYMMDD(date2);
+                },
+                parseDate: (dateStr) => {
+                    return new Date(dateStr + 'T00:00:00');
+                },
+                today: () => {
+                    return new Date();
+                },
+                daysBetween: (date1, date2) => {
+                    const diffTime = Math.abs(date2 - date1);
+                    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                }
+            };
+        })();
+
+        // Storage utilities module
+        const Storage = (() => {
+            return {
+                get: () => {
+                    try {
+                        const data = localStorage.getItem(APP_CONFIG.STORAGE_KEY);
+                        if (!data) return null;
+                        
+                        const parsed = JSON.parse(data);
+                        // Defensive checks
+                        if (!parsed || typeof parsed !== 'object') return null;
+                        if (!parsed.projects || !Array.isArray(parsed.projects)) {
+                            parsed.projects = [];
+                        }
+                        if (!parsed.settings || typeof parsed.settings !== 'object') {
+                            parsed.settings = { ...APP_CONFIG.DEFAULT_SETTINGS };
+                        }
+                        
+                        return parsed;
+                    } catch (e) {
+                        console.error('Error reading from localStorage:', e);
+                        return null;
+                    }
+                },
+                set: (data) => {
+                    try {
+                        if (!data || typeof data !== 'object') return false;
+                        localStorage.setItem(APP_CONFIG.STORAGE_KEY, JSON.stringify(data));
+                        return true;
+                    } catch (e) {
+                        console.error('Error writing to localStorage:', e);
+                        alert('Storage quota exceeded. Please export your data and reset.');
+                        return false;
+                    }
+                }
+            };
+        })();
+
+        // ID generation
+        const generateId = (prefix = 'id') => {
+            return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        };
+
+        // Global state
+        let appData = null;
+        let currentProject = null;
+        let currentFlashcards = [];
+        let currentCardIndex = 0;
+        let isCardFlipped = false;
+
+        // Initialize app - no seeding, pure empty state
+        function initApp() {
+            appData = Storage.get();
+            
+            if (!appData || !appData.projects || appData.projects.length === 0) {
+                // Initialize completely empty app data
+                appData = {
+                    settings: { ...APP_CONFIG.DEFAULT_SETTINGS },
+                    projects: [],
+                    streak: { current: 0, best: 0, lastActive: null }
+                };
+                Storage.set(appData);
+                showEmptyState();
+            } else {
+                showProjectsSection();
+            }
+            
+            setupEventListeners();
+            renderDashboard();
+            renderToday();
+            updatePressureBar();
         }
-      }
-      markRemember(p, w); recomputeProgress(p); bumpStreak(); save();
-      nextCard();
-    }
 
-    function onForgot(){
-      const p = currentProject(); const w = currentWord(); if(!w||!p) return;
-      markForgot(p, w); recomputeProgress(p); bumpStreak(); save();
-      nextCard();
-    }
+        function showEmptyState() {
+            document.getElementById('emptyState').classList.remove('hidden');
+            document.getElementById('projectsSection').classList.add('hidden');
+        }
 
-    // ==========================
-    // Actions
-    // ==========================
-    function openNewProjectModal(){ $('#modalBackdrop').classList.remove('hidden'); $('#modalProject').classList.remove('hidden'); }
-    function closeModal(id){ $('#modalBackdrop').classList.add('hidden'); $('#'+id).classList.add('hidden'); }
+        function showProjectsSection() {
+            document.getElementById('emptyState').classList.add('hidden');
+            document.getElementById('projectsSection').classList.remove('hidden');
+        }
 
-    function createProject(){
-      const title = $('#npTitle').value.trim() || 'Untitled Project';
-      const deadline = $('#npDeadline').value || '';
-      const blockSize = clamp(Number($('#npBlock').value)||12, 8, 20);
-      const words = parseWordsText($('#npWords').value||'');
-      const proj = { id: uid('proj'), title, deadline, words, blocks: [], progress:{total:words.length, learned:0, mastered:0}, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(), blockSize };
-      autoSplit(proj, blockSize); autoSchedule(proj); recomputeProgress(proj);
-      app.projects.push(proj); save();
-      closeModal('modalProject');
-      renderDashboard(); renderToday(); initFlashcardsSelectors();
-    }
+        function createProject(title, deadline, words) {
+            const project = {
+                id: generateId('proj'),
+                title,
+                deadline: DateUtils.formatYYYYMMDD(deadline),
+                words,
+                blocks: [],
+                progress: {
+                    total: words.length,
+                    learned: 0,
+                    mastered: 0
+                },
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
 
-    function exportAll(){ download('vocab_app_export.json', JSON.stringify(app, null, 2)); }
+            // Auto split into blocks and schedule
+            autoSplitBlocks(project);
+            autoScheduleBlocks(project);
+            
+            return project;
+        }
 
-    function importAll(){ $('#modalBackdrop').classList.remove('hidden'); $('#modalImport').classList.remove('hidden'); }
+        function autoSplitBlocks(project, blockSize = null) {
+            const size = blockSize || appData.settings.defaultBlockSize;
+            const words = project.words;
+            const blocks = [];
 
-    function applyImport(){
-      try{
-        const obj = JSON.parse($('#impText').value);
-        if(obj.projects){
-          // Full app import -> merge projects, avoid ID collision
-          const existingIds = new Set(app.projects.map(p=>p.id));
-          obj.projects.forEach(p=>{
-            if(existingIds.has(p.id)) p.id = uid('proj');
-            // ensure words/blocks ids unique
-            const wid = new Set();
-            p.words.forEach(w=>{ if(wid.has(w.id)) w.id = uid('w'); else wid.add(w.id); });
-            const bid = new Set();
-            p.blocks.forEach(b=>{ if(bid.has(b.id)) b.id = uid('b'); else bid.add(b.id); });
-            app.projects.push(p);
-          });
-        } else if(obj.id && obj.words){
-          // Single project
-          const p = obj; p.id = uid('proj');
-          const wid = new Set(); p.words.forEach(w=>{ if(wid.has(w.id)) w.id = uid('w'); else wid.add(w.id); });
-          const bid = new Set(); p.blocks.forEach(b=>{ if(bid.has(b.id)) b.id = uid('b'); else bid.add(b.id); });
-          app.projects.push(p);
-        } else { alert('Invalid JSON format.'); return; }
-        save();
-        closeModal('modalImport');
-        renderDashboard(); renderToday(); initFlashcardsSelectors();
-      }catch(e){ alert('Failed to import JSON: '+e.message); }
-    }
+            for (let i = 0; i < words.length; i += size) {
+                const blockWords = words.slice(i, i + size);
+                blocks.push({
+                    id: generateId('b'),
+                    title: `Block ${Math.floor(i / size) + 1}`,
+                    wordIds: blockWords.map(w => w.id),
+                    scheduledDate: null
+                });
+            }
 
-    function exportProject(id){
-      const p = getProject(id); if(!p) return;
-      download(`${p.title.replace(/\s+/g,'_')}.json`, JSON.stringify(p, null, 2));
-    }
+            project.blocks = blocks;
+        }
 
-    function confirmDeleteProject(id){
-      $('#confirmText').textContent = 'Delete this project? This cannot be undone.';
-      $('#modalBackdrop').classList.remove('hidden'); $('#modalConfirm').classList.remove('hidden');
-      $('#confirmYes').onclick = ()=>{ deleteProject(id); closeModal('modalConfirm'); };
-    }
+        function autoScheduleBlocks(project) {
+            const today = DateUtils.today();
+            const deadline = DateUtils.parseDate(project.deadline);
+            const blocks = project.blocks.filter(b => !isBlockCompleted(project, b));
+            
+            if (blocks.length === 0) return;
 
-    function deleteProject(id){
-      app.projects = app.projects.filter(p=>p.id!==id);
-      if(currentProjectId===id) currentProjectId = null;
-      save(); renderDashboard(); renderToday(); initFlashcardsSelectors();
-      if(!app.projects.length) showView('dashboard');
-    }
+            const daysAvailable = Math.max(1, DateUtils.daysBetween(today, deadline));
+            const daysPerBlock = Math.max(1, Math.floor(daysAvailable / blocks.length));
 
-    function openAddWordsModal(projectId){ currentProjectId = projectId; $('#modalBackdrop').classList.remove('hidden'); $('#modalWords').classList.remove('hidden'); }
+            blocks.forEach((block, index) => {
+                const scheduleDate = DateUtils.addDays(today, index * daysPerBlock);
+                block.scheduledDate = DateUtils.formatYYYYMMDD(scheduleDate);
+            });
+        }
 
-    function addWordsToCurrent(){
-      const p = getProject(currentProjectId); if(!p) return;
-      const words = parseWordsText($('#awText').value||'');
-      p.words.push(...words);
-      p.updatedAt = new Date().toISOString();
-      recomputeProgress(p);
-      // maintain block size by re-splitting (ask confirm)
-      if(confirm('Rebuild blocks now to include new words?')){ autoSplit(p, p.blockSize||app.settings.defaultBlockSize); autoSchedule(p); }
-      save();
-      closeModal('modalWords');
-      renderProject(); renderDashboard(); renderToday();
-    }
+        function isBlockCompleted(project, block) {
+            return block.wordIds.every(wordId => {
+                const word = project.words.find(w => w.id === wordId);
+                return word && word.status === 'mastered';
+            });
+        }
 
-    function editWordPrompt(pid, wid){
-      const p = getProject(pid); const w = p.words.find(x=>x.id===wid);
-      const term = prompt('Edit term', w.term); if(term===null) return;
-      const meaning = prompt('Edit meaning', w.meaning||''); if(meaning===null) return;
-      const example = prompt('Edit example', w.example||''); if(example===null) return;
-      const tags = prompt('Edit tags (comma-separated)', (w.tags||[]).join(', ')); if(tags===null) return;
-      Object.assign(w, {term, meaning, example, tags: tags.split(',').map(s=>s.trim()).filter(Boolean)});
-      p.updatedAt = new Date().toISOString(); save(); renderProject(); renderDashboard();
-    }
+        // SRS Logic
+        function updateWordSRS(word, remembered) {
+            const srs = appData.settings.defaultSRS;
+            const today = DateUtils.today();
 
-    function deleteWord(pid, wid){
-      const p = getProject(pid);
-      p.words = p.words.filter(w=>w.id!==wid);
-      // Also remove from blocks
-      p.blocks.forEach(b=> b.wordIds = b.wordIds.filter(id=> id!==wid));
-      recomputeProgress(p); save(); renderProject(); renderDashboard(); renderToday();
-    }
+            if (remembered) {
+                word.srs.intervalIndex = Math.min(word.srs.intervalIndex + 1, srs.length - 1);
+                word.srs.correctStreak++;
+                
+                // Update status
+                if (word.status === 'new') {
+                    word.status = 'learning';
+                } else if (word.status === 'learning' && word.srs.intervalIndex >= 2) {
+                    word.status = 'review';
+                } else if (word.status === 'review' && word.srs.intervalIndex === srs.length - 1) {
+                    word.status = 'mastered';
+                }
+            } else {
+                word.srs.intervalIndex = Math.max(0, word.srs.intervalIndex - 1);
+                word.srs.correctStreak = 0;
+                
+                if (word.status === 'mastered') {
+                    word.status = 'review';
+                }
+            }
 
-    function saveProjectMeta(){
-      const p = getProject(currentProjectId); if(!p) return;
-      p.title = $('#projTitleInput').value.trim() || p.title;
-      p.deadline = $('#projDeadlineInput').value || p.deadline;
-      p.blockSize = clamp(Number($('#projBlockSize').value)||app.settings.defaultBlockSize, 8, 20);
-      const srsStr = $('#projSRS').value.trim();
-      const arr = srsStr.split(',').map(x=> parseInt(x.trim(),10)).filter(x=> !isNaN(x) && x>0);
-      if(arr.length) p.srsCustom = arr; else delete p.srsCustom;
-      p.updatedAt = new Date().toISOString(); save(); renderProject(); renderDashboard(); renderToday(); initFlashcardsSelectors();
-    }
+            const nextReviewDate = DateUtils.addDays(today, srs[word.srs.intervalIndex]);
+            word.srs.nextReview = DateUtils.formatYYYYMMDD(nextReviewDate);
+        }
 
-    function projectAutoSplit(){ const p = getProject(currentProjectId); autoSplit(p, p.blockSize||app.settings.defaultBlockSize); save(); renderProject(); renderToday(); }
-    function projectReschedule(){ const p = getProject(currentProjectId); autoSchedule(p); save(); renderProject(); renderToday(); }
+        // Rendering functions
+        function renderDashboard() {
+            if (!appData.projects || appData.projects.length === 0) {
+                showEmptyState();
+                return;
+            }
+
+            showProjectsSection();
+            const projectsList = document.getElementById('projectsList');
+
+            projectsList.innerHTML = appData.projects.map(project => {
+                const progress = calculateProgress(project);
+                const nextTasks = getNextTasks(project);
+                const daysUntilDeadline = DateUtils.daysBetween(DateUtils.today(), DateUtils.parseDate(project.deadline));
+                
+                return `
+                    <div class="glass rounded-2xl p-6 card-hover">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="text-lg font-semibold gradient-text">${project.title}</h3>
+                            <span class="text-xs px-3 py-1 rounded-full glass ${daysUntilDeadline <= 3 ? 'border-red-400 text-red-400' : daysUntilDeadline <= 7 ? 'border-yellow-400 text-yellow-400' : 'border-green-400 text-green-400'}">
+                                ${daysUntilDeadline}d left
+                            </span>
+                        </div>
+                        
+                        <div class="text-sm text-white/60 mb-4">
+                            ${project.words.length} words • ${project.blocks.length} blocks
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="flex justify-between text-sm mb-2">
+                                <span>Progress</span>
+                                <span>${Math.round(progress)}%</span>
+                            </div>
+                            <div class="w-full bg-white/10 rounded-full h-2">
+                                <div class="bg-gradient-to-r from-violet-500 to-pink-500 h-2 rounded-full progress-animated" style="width: ${progress}%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="text-sm text-white/60 mb-4">
+                            ${nextTasks}
+                        </div>
+                        
+                        <div class="flex space-x-2">
+                            <button onclick="openProject('${project.id}')" class="flex-1 btn-primary px-3 py-2 rounded-xl text-sm font-medium">
+                                Open
+                            </button>
+                            <button onclick="quickAddWords('${project.id}')" class="btn-secondary px-3 py-2 rounded-xl text-sm">
+                                Add Words
+                            </button>
+                            <button onclick="exportProject('${project.id}')" class="btn-secondary px-3 py-2 rounded-xl text-sm">
+                                Export
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function calculateProgress(project) {
+            const total = project.words.length;
+            if (total === 0) return 0;
+            
+            const mastered = project.words.filter(w => w.status === 'mastered').length;
+            const learning = project.words.filter(w => w.status === 'learning' || w.status === 'review').length;
+            
+            return ((mastered * 1.0 + learning * 0.5) / total) * 100;
+        }
+
+        function getNextTasks(project) {
+            const today = DateUtils.formatYYYYMMDD(DateUtils.today());
+            const learnToday = project.blocks.filter(b => b.scheduledDate === today && !isBlockCompleted(project, b)).length;
+            const reviewToday = project.words.filter(w => w.srs.nextReview && w.srs.nextReview <= today && w.status !== 'new').length;
+            
+            const tasks = [];
+            if (learnToday > 0) tasks.push(`${learnToday} blocks to learn`);
+            if (reviewToday > 0) tasks.push(`${reviewToday} words to review`);
+            
+            return tasks.length > 0 ? tasks.join(', ') : 'No tasks today';
+        }
+
+        function renderToday() {
+            const today = DateUtils.formatYYYYMMDD(DateUtils.today());
+            const learnTasks = [];
+            const reviewTasks = [];
+
+            if (appData && appData.projects) {
+                appData.projects.forEach(project => {
+                    // Learn tasks (new blocks scheduled for today)
+                    if (project.blocks) {
+                        project.blocks.forEach(block => {
+                            if (block.scheduledDate === today && !isBlockCompleted(project, block)) {
+                                learnTasks.push({
+                                    project,
+                                    block,
+                                    words: block.wordIds.map(id => project.words.find(w => w.id === id)).filter(Boolean)
+                                });
+                            }
+                        });
+                    }
+
+                    // Review tasks (words due for review)
+                    if (project.words) {
+                        project.words.forEach(word => {
+                            if (word.srs && word.srs.nextReview && word.srs.nextReview <= today && word.status !== 'new') {
+                                reviewTasks.push({ project, word });
+                            }
+                        });
+                    }
+                });
+            }
+
+            // Update counts
+            document.getElementById('learnTodayCount').textContent = 
+                `${learnTasks.reduce((sum, task) => sum + task.words.length, 0)} new words`;
+            document.getElementById('reviewTodayCount').textContent = 
+                `${reviewTasks.length} words to review`;
+
+            // Render learn tasks
+            const learnList = document.getElementById('learnTodayList');
+            if (learnTasks.length === 0) {
+                learnList.innerHTML = '<p class="text-white/50 text-center py-8">No new blocks to learn today 🎉</p>';
+            } else {
+                learnList.innerHTML = learnTasks.map(task => `
+                    <div class="glass rounded-xl p-4 flex justify-between items-center">
+                        <div>
+                            <div class="font-medium">${task.project.title} - ${task.block.title}</div>
+                            <div class="text-sm text-white/60">${task.words.length} words</div>
+                        </div>
+                        <button onclick="startFlashcards('new', '${task.project.id}', '${task.block.id}')" 
+                                class="btn-primary px-4 py-2 rounded-xl text-sm animate-pulse-soft">
+                            Start
+                        </button>
+                    </div>
+                `).join('');
+            }
+
+            // Render review tasks
+            const reviewList = document.getElementById('reviewTodayList');
+            if (reviewTasks.length === 0) {
+                reviewList.innerHTML = '<p class="text-white/50 text-center py-8">No words to review today 🎉</p>';
+            } else {
+                // Group by project
+                const groupedReviews = {};
+                reviewTasks.forEach(task => {
+                    if (!groupedReviews[task.project.id]) {
+                        groupedReviews[task.project.id] = {
+                            project: task.project,
+                            words: []
+                        };
+                    }
+                    groupedReviews[task.project.id].words.push(task.word);
+                });
+
+                reviewList.innerHTML = Object.values(groupedReviews).map(group => `
+                    <div class="glass rounded-xl p-4 flex justify-between items-center">
+                        <div>
+                            <div class="font-medium">${group.project.title}</div>
+                            <div class="text-sm text-white/60">${group.words.length} words to review</div>
+                        </div>
+                        <button onclick="startFlashcards('review', '${group.project.id}')" 
+                                class="btn-primary px-4 py-2 rounded-xl text-sm animate-pulse-soft">
+                            Start
+                        </button>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function renderProject(projectId) {
+            const project = appData.projects.find(p => p.id === projectId);
+            if (!project) return;
+
+            currentProject = project;
+            
+            // Update project info
+            document.getElementById('projectTitle').textContent = project.title;
+            document.getElementById('projectMeta').textContent = 
+                `Deadline: ${project.deadline} • ${project.words.length} words • ${project.blocks.length} blocks`;
+
+            // Update settings
+            document.getElementById('blockSizeInput').value = appData.settings.defaultBlockSize;
+            document.getElementById('srsIntervalsInput').value = appData.settings.defaultSRS.join(',');
+
+            // Render words table
+            renderWordsTable(project);
+            
+            // Render blocks
+            renderBlocks(project);
+
+            // Show project tab
+            document.querySelector('[data-view="project"]').style.display = 'block';
+            switchView('project');
+        }
+
+        function renderWordsTable(project, searchTerm = '') {
+            const tbody = document.getElementById('wordsTableBody');
+            const filteredWords = project.words.filter(word => 
+                !searchTerm || 
+                word.term.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                word.meaning.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+
+            tbody.innerHTML = filteredWords.map((word, index) => `
+                <tr class="border-b border-white/10 hover:bg-white/5 transition-colors">
+                    <td class="py-3 px-2">${index + 1}</td>
+                    <td class="py-3 px-2 font-medium">${word.term}</td>
+                    <td class="py-3 px-2">${word.meaning}</td>
+                    <td class="py-3 px-2 text-sm text-white/60">${word.example || '-'}</td>
+                    <td class="py-3 px-2">
+                        <span class="px-2 py-1 rounded-full text-xs glass ${getStatusColor(word.status)}">
+                            ${word.status}
+                        </span>
+                    </td>
+                    <td class="py-3 px-2">
+                        <button onclick="editWord('${word.id}')" class="text-cyan-400 hover:text-cyan-300 text-sm mr-2 transition-colors">Edit</button>
+                        <button onclick="deleteWord('${word.id}')" class="text-red-400 hover:text-red-300 text-sm transition-colors">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function getStatusColor(status) {
+            switch (status) {
+                case 'new': return 'border-gray-400 text-gray-400';
+                case 'learning': return 'border-yellow-400 text-yellow-400';
+                case 'review': return 'border-cyan-400 text-cyan-400';
+                case 'mastered': return 'border-green-400 text-green-400';
+                default: return 'border-gray-400 text-gray-400';
+            }
+        }
+
+        function renderBlocks(project) {
+            const blocksList = document.getElementById('blocksList');
+            
+            blocksList.innerHTML = project.blocks.map(block => {
+                const words = block.wordIds.map(id => project.words.find(w => w.id === id)).filter(Boolean);
+                const completed = isBlockCompleted(project, block);
+                const progress = words.length > 0 ? (words.filter(w => w.status === 'mastered').length / words.length) * 100 : 0;
+                
+                return `
+                    <div class="glass rounded-xl p-4 card-hover">
+                        <div class="flex justify-between items-center mb-3">
+                            <h4 class="font-medium">${block.title}</h4>
+                            <span class="text-xs px-2 py-1 rounded-full glass ${completed ? 'border-green-400 text-green-400' : 'border-gray-400 text-gray-400'}">
+                                ${completed ? 'Complete' : 'Pending'}
+                            </span>
+                        </div>
+                        <div class="text-sm text-white/60 mb-3">
+                            ${words.length} words • Scheduled: ${block.scheduledDate || 'Not scheduled'}
+                        </div>
+                        <div class="w-full bg-white/10 rounded-full h-2 mb-4">
+                            <div class="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full progress-animated" style="width: ${progress}%"></div>
+                        </div>
+                        <button onclick="startFlashcards('new', '${project.id}', '${block.id}')" 
+                                class="w-full btn-primary px-3 py-2 rounded-xl text-sm font-medium">
+                            Study Block
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updatePressureBar() {
+            const today = DateUtils.today();
+            let nearestDeadline = null;
+            let minDays = Infinity;
+
+            if (appData && appData.projects) {
+                appData.projects.forEach(project => {
+                    if (project.deadline) {
+                        const deadline = DateUtils.parseDate(project.deadline);
+                        const days = DateUtils.daysBetween(today, deadline);
+                        if (days < minDays && days >= 0) {
+                            minDays = days;
+                            nearestDeadline = project;
+                        }
+                    }
+                });
+            }
+
+            const progressBar = document.getElementById('pressureProgress');
+            const progressText = document.getElementById('pressureText');
+
+            if (!progressBar || !progressText) return;
+
+            if (!nearestDeadline) {
+                progressBar.style.width = '0%';
+                progressText.textContent = 'No upcoming deadlines';
+                return;
+            }
+
+            const intensity = Math.max(0, Math.min(100, (14 - minDays) / 14 * 100));
+            progressBar.style.width = `${intensity}%`;
+            progressText.textContent = `${nearestDeadline.title}: ${minDays} days left`;
+        }
+
+        // Flashcards
+        function startFlashcards(mode, projectId, blockId = null) {
+            const project = appData.projects.find(p => p.id === projectId);
+            if (!project) return;
+
+            currentFlashcards = [];
+            
+            if (mode === 'new' && blockId) {
+                const block = project.blocks.find(b => b.id === blockId);
+                if (block) {
+                    currentFlashcards = block.wordIds
+                        .map(id => project.words.find(w => w.id === id))
+                        .filter(w => w && w.status === 'new');
+                }
+            } else if (mode === 'review') {
+                const today = DateUtils.formatYYYYMMDD(DateUtils.today());
+                currentFlashcards = project.words.filter(w => 
+                    w.srs.nextReview && w.srs.nextReview <= today && w.status !== 'new'
+                );
+            }
+
+            if (currentFlashcards.length === 0) {
+                alert('No cards available for this mode.');
+                return;
+            }
+
+            currentCardIndex = 0;
+            isCardFlipped = false;
+            
+            switchView('flashcards');
+            document.getElementById('flashcardMode').value = mode;
+            renderFlashcard();
+        }
+
+        function renderFlashcard() {
+            const noCards = document.getElementById('noCards');
+            const flashcard = document.getElementById('flashcard');
+            
+            if (currentFlashcards.length === 0) {
+                noCards.classList.remove('hidden');
+                flashcard.classList.add('hidden');
+                return;
+            }
+
+            noCards.classList.add('hidden');
+            flashcard.classList.remove('hidden');
+
+            const word = currentFlashcards[currentCardIndex];
+            
+            // Update progress
+            document.getElementById('cardProgress').textContent = 
+                `${currentCardIndex + 1} / ${currentFlashcards.length}`;
+
+            // Update card content
+            document.getElementById('cardWord').textContent = word.term;
+            document.getElementById('cardClue').textContent = word.tags ? word.tags.join(', ') : '';
+            document.getElementById('cardMeaning').textContent = word.meaning;
+            document.getElementById('cardExample').textContent = word.example || '';
+
+            // Reset card state
+            document.querySelector('.flip-card').classList.remove('flipped');
+            isCardFlipped = false;
+
+            // Handle typing mode
+            const typingMode = document.getElementById('typingMode').checked;
+            const typingSection = document.getElementById('typingSection');
+            const showBtn = document.getElementById('showBtn');
+            
+            if (typingMode) {
+                typingSection.classList.remove('hidden');
+                showBtn.textContent = 'Check (Space)';
+                document.getElementById('typingInput').value = '';
+                document.getElementById('typingInput').focus();
+                document.getElementById('typingFeedback').textContent = '';
+                document.getElementById('typingInput').className = 'w-full glass rounded-xl px-4 py-3 text-center text-lg focus-ring';
+            } else {
+                typingSection.classList.add('hidden');
+                showBtn.textContent = 'Show (Space)';
+            }
+        }
+
+        function flipCard() {
+            const flipCard = document.querySelector('.flip-card');
+            const typingMode = document.getElementById('typingMode').checked;
+            
+            if (typingMode && !isCardFlipped) {
+                checkTyping();
+            } else {
+                flipCard.classList.toggle('flipped');
+                isCardFlipped = !isCardFlipped;
+            }
+        }
+
+        function checkTyping() {
+            const input = document.getElementById('typingInput');
+            const feedback = document.getElementById('typingFeedback');
+            const word = currentFlashcards[currentCardIndex];
+            
+            const userAnswer = input.value.trim().toLowerCase();
+            const correctAnswer = word.meaning.toLowerCase();
+            
+            // Simple fuzzy matching
+            const similarity = calculateSimilarity(userAnswer, correctAnswer);
+            const isCorrect = similarity > 0.7;
+            
+            input.className = `w-full glass rounded-xl px-4 py-3 text-center text-lg focus-ring bg-white/5 text-white ${isCorrect ? 'border-green-400 bg-green-500/10' : 'border-red-400 bg-red-500/10'}`;
+            
+            feedback.textContent = isCorrect ? 
+                '✅ Correct!' : 
+                `❌ Correct answer: ${word.meaning}`;
+            
+            // Flip the card
+            document.querySelector('.flip-card').classList.add('flipped');
+            isCardFlipped = true;
+        }
+
+        function calculateSimilarity(str1, str2) {
+            const longer = str1.length > str2.length ? str1 : str2;
+            const shorter = str1.length > str2.length ? str2 : str1;
+            
+            if (longer.length === 0) return 1.0;
+            
+            const distance = levenshteinDistance(longer, shorter);
+            return (longer.length - distance) / longer.length;
+        }
+
+        function levenshteinDistance(str1, str2) {
+            const matrix = [];
+            
+            for (let i = 0; i <= str2.length; i++) {
+                matrix[i] = [i];
+            }
+            
+            for (let j = 0; j <= str1.length; j++) {
+                matrix[0][j] = j;
+            }
+            
+            for (let i = 1; i <= str2.length; i++) {
+                for (let j = 1; j <= str1.length; j++) {
+                    if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                        matrix[i][j] = matrix[i - 1][j - 1];
+                    } else {
+                        matrix[i][j] = Math.min(
+                            matrix[i - 1][j - 1] + 1,
+                            matrix[i][j - 1] + 1,
+                            matrix[i - 1][j] + 1
+                        );
+                    }
+                }
+            }
+            
+            return matrix[str2.length][str1.length];
+        }
+
+        function handleFlashcardAction(remembered) {
+            const word = currentFlashcards[currentCardIndex];
+            const project = appData.projects.find(p => p.words.some(w => w.id === word.id));
+            
+            if (project) {
+                updateWordSRS(word, remembered);
+                updateProjectProgress(project);
+                Storage.set(appData);
+            }
+            
+            nextCard();
+        }
+
+        function nextCard() {
+            if (currentCardIndex < currentFlashcards.length - 1) {
+                currentCardIndex++;
+                renderFlashcard();
+            } else {
+                // Session complete
+                alert(`🎉 Session complete! You reviewed ${currentFlashcards.length} cards.`);
+                renderDashboard();
+                renderToday();
+                switchView('today');
+            }
+        }
+
+        function updateProjectProgress(project) {
+            const total = project.words.length;
+            const learned = project.words.filter(w => w.status === 'learning' || w.status === 'review').length;
+            const mastered = project.words.filter(w => w.status === 'mastered').length;
+            
+            project.progress = { total, learned, mastered };
+            project.updatedAt = new Date().toISOString();
+        }
+
+        // Event handlers
+        function setupEventListeners() {
+            // Navigation
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.addEventListener('click', (e) => {
+                    const view = e.target.dataset.view;
+                    if (view === 'project' && !currentProject) return;
+                    switchView(view);
+                });
+            });
+
+            // New project
+            document.getElementById('newProjectBtn').addEventListener('click', showNewProjectModal);
+            document.getElementById('createProjectBtn').addEventListener('click', showNewProjectModal);
+            document.getElementById('createFirstProjectBtn').addEventListener('click', showNewProjectModal);
+            document.getElementById('cancelNewProject').addEventListener('click', hideNewProjectModal);
+            document.getElementById('createNewProject').addEventListener('click', createNewProject);
+
+            // Project actions
+            document.getElementById('backToDashboard').addEventListener('click', () => {
+                document.querySelector('[data-view="project"]').style.display = 'none';
+                switchView('dashboard');
+            });
+            
+            document.getElementById('addWordsBtn').addEventListener('click', () => showAddWordsModal());
+            document.getElementById('cancelAddWords').addEventListener('click', hideAddWordsModal);
+            document.getElementById('confirmAddWords').addEventListener('click', addWordsToProject);
+            
+            document.getElementById('rebuildBlocksBtn').addEventListener('click', rebuildBlocks);
+            document.getElementById('exportProjectBtn').addEventListener('click', () => exportProject(currentProject.id));
+            document.getElementById('deleteProjectBtn').addEventListener('click', () => deleteProject(currentProject.id));
+
+            // Search
+            document.getElementById('searchWords').addEventListener('input', (e) => {
+                if (currentProject) {
+                    renderWordsTable(currentProject, e.target.value);
+                }
+            });
+
+            // Flashcards
+            document.getElementById('selectBlockForFlashcards').addEventListener('change', loadFlashcards);
+
+            document.getElementById('showBtn').addEventListener('click', flipCard);
+            document.getElementById('rememberBtn').addEventListener('click', () => handleFlashcardAction(true));
+            document.getElementById('forgotBtn').addEventListener('click', () => handleFlashcardAction(false));
+
+            document.getElementById('typingInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    flipCard();
+                }
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (document.querySelector('#flashcardsView:not(.hidden)')) {
+                    switch (e.key) {
+                        case ' ':
+                            e.preventDefault();
+                            flipCard();
+                            break;
+                        case 'Enter':
+                            e.preventDefault();
+                            nextCard();
+                            break;
+                        case '1':
+                            e.preventDefault();
+                            handleFlashcardAction(false);
+                            break;
+                        case '2':
+                            e.preventDefault();
+                            handleFlashcardAction(true);
+                            break;
+                    }
+                }
+            });
+
+            // Settings
+            document.getElementById('defaultBlockSize').addEventListener('change', updateSettings);
+            document.getElementById('defaultSRS').addEventListener('change', updateSettings);
+            document.getElementById('importBtn').addEventListener('click', showImportModal);
+            document.getElementById('exportAllBtn').addEventListener('click', exportAll);
+            document.getElementById('resetDataBtn').addEventListener('click', resetData);
+
+            // Import/Export
+            document.getElementById('cancelImport').addEventListener('click', hideImportModal);
+            document.getElementById('confirmImport').addEventListener('click', importData);
+            document.getElementById('importFile').addEventListener('change', handleFileImport);
+
+            // Confirm modal
+            document.getElementById('cancelConfirm').addEventListener('click', hideConfirmModal);
+            document.getElementById('confirmAction').addEventListener('click', executeConfirmAction);
+        }
+
+        function switchView(viewName) {
+            // Hide all views
+            document.querySelectorAll('.view').forEach(view => {
+                view.classList.add('hidden');
+            });
+            
+            // Show selected view
+            document.getElementById(`${viewName}View`).classList.remove('hidden');
+            
+            // Update navigation
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+                const indicator = tab.querySelector('div');
+                if (indicator) indicator.remove();
+            });
+            
+            const activeTab = document.querySelector(`[data-view="${viewName}"]`);
+            if (activeTab) {
+                activeTab.classList.add('active');
+                activeTab.innerHTML += '<div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-violet-500 to-pink-500 rounded-full"></div>';
+            }
+
+            // Load view-specific data
+            if (viewName === 'settings') {
+                loadSettings();
+            } else if (viewName === 'flashcards') {
+                loadFlashcardProjects();
+            }
+        }
+
+        function loadFlashcardProjects() {
+            // Update blocks dropdown with all available blocks from all projects
+            const blockSelect = document.getElementById('selectBlockForFlashcards');
+            blockSelect.innerHTML = '<option value="new">New Words</option><option value="review">Review Queue</option>';
+            
+            if (appData && appData.projects) {
+                appData.projects.forEach(project => {
+                    if (project.blocks) {
+                        project.blocks.forEach(block => {
+                            const words = block.wordIds.map(id => project.words.find(w => w.id === id)).filter(Boolean);
+                            const newWords = words.filter(w => w.status === 'new').length;
+                            if (newWords > 0) {
+                                blockSelect.innerHTML += `<option value="${project.id}:${block.id}">${project.title} - ${block.title} (${newWords} new words)</option>`;
+                            }
+                        });
+                    }
+                });
+            }
+            
+            // Reset flashcards
+            currentFlashcards = [];
+            renderFlashcard();
+        }
 
 
-    // SETTINGS actions
-    function renderSettings(){
-      $('#setBlockSize').value = app.settings.defaultBlockSize;
-      $('#setSRS').value = app.settings.defaultSRS.join(',');
-      $('#setReminder').value = '08:00';
-    }
 
-    function saveSettings(){
-      app.settings.defaultBlockSize = clamp(Number($('#setBlockSize').value)||12, 8, 20);
-      const arr = $('#setSRS').value.split(',').map(x=> parseInt(x.trim(),10)).filter(x=>!isNaN(x)&&x>0);
-      if(arr.length) app.settings.defaultSRS = arr;
-      save(); alert('Settings saved.');
-    }
+        function loadFlashcards() {
+            const blockValue = document.getElementById('selectBlockForFlashcards').value;
+            
+            currentFlashcards = [];
+            
+            if (blockValue === 'new') {
+                // All new words from all projects
+                if (appData && appData.projects) {
+                    appData.projects.forEach(project => {
+                        if (project.words) {
+                            currentFlashcards.push(...project.words.filter(w => w.status === 'new'));
+                        }
+                    });
+                }
+            } else if (blockValue === 'review') {
+                // Words due for review from all projects
+                const today = DateUtils.formatYYYYMMDD(DateUtils.today());
+                if (appData && appData.projects) {
+                    appData.projects.forEach(project => {
+                        if (project.words) {
+                            currentFlashcards.push(...project.words.filter(w => 
+                                w.srs && w.srs.nextReview && w.srs.nextReview <= today && w.status !== 'new'
+                            ));
+                        }
+                    });
+                }
+            } else if (blockValue.includes(':')) {
+                // Specific block from specific project
+                const [projectId, blockId] = blockValue.split(':');
+                const project = appData.projects.find(p => p.id === projectId);
+                if (project) {
+                    const block = project.blocks.find(b => b.id === blockId);
+                    if (block) {
+                        currentFlashcards = block.wordIds
+                            .map(id => project.words.find(w => w.id === id))
+                            .filter(w => w && w.status === 'new');
+                    }
+                }
+            }
+            
+            currentCardIndex = 0;
+            isCardFlipped = false;
+            renderFlashcard();
+        }
 
-    function resetAll(){ if(confirm('Reset ALL data? This cannot be undone.')){ localStorage.removeItem(LS_KEY); seed(); renderAll(); } }
+        // Modal functions
+        function showNewProjectModal() {
+            document.getElementById('newProjectModal').classList.remove('hidden');
+            document.getElementById('newProjectModal').classList.add('flex');
+            
+            // Set default deadline to 7 days from now
+            const defaultDeadline = DateUtils.addDays(DateUtils.today(), 7);
+            document.getElementById('newProjectDeadline').value = DateUtils.formatYYYYMMDD(defaultDeadline);
+        }
 
-    // ==========================
-    // Event wiring
-    // ==========================
-    function wireEvents(){
-      // nav
-      $$('.navtab').forEach(b=> b.addEventListener('click', ()=>{
-        const target = b.dataset.nav; showView(target); if(target==='today') renderToday(); if(target==='dashboard') renderDashboard(); if(target==='settings') renderSettings(); if(target==='flashcards') initFlashcardsSelectors();
-      }));
-      // header
-      $('#btnNewProjectHeader').addEventListener('click', openNewProjectModal);
-      // dashboard
-      $('#btnNewProjectDash').addEventListener('click', openNewProjectModal);
-      $('#btnExportAll').addEventListener('click', exportAll);
-      $('#btnImportAll').addEventListener('click', importAll);
-      // modals close
-      $$('[data-close]').forEach(b=> b.addEventListener('click', ()=> closeModal(b.getAttribute('data-close')) ));
-      // new project modal
-      $('#npCreate').addEventListener('click', createProject);
-      // add words modal
-      $('#awAdd').addEventListener('click', addWordsToCurrent);
-      // import modal
-      $('#impApply').addEventListener('click', applyImport);
-      // project view buttons
-      $('#backToDashboard').addEventListener('click', ()=>{ showView('dashboard'); renderDashboard(); });
-      $('#btnProjSave').addEventListener('click', saveProjectMeta);
-      $('#btnAddWords').addEventListener('click', ()=> openAddWordsModal(currentProjectId));
-      $('#btnAutoSplit').addEventListener('click', projectAutoSplit);
-      $('#btnReschedule').addEventListener('click', projectReschedule);
-      $('#btnExportProject').addEventListener('click', ()=> exportProject(currentProjectId));
-      $('#btnDeleteProject').addEventListener('click', ()=> confirmDeleteProject(currentProjectId));
+        function hideNewProjectModal() {
+            document.getElementById('newProjectModal').classList.add('hidden');
+            document.getElementById('newProjectModal').classList.remove('flex');
+            
+            // Clear form
+            document.getElementById('newProjectTitle').value = '';
+            document.getElementById('newProjectWords').value = '';
+        }
 
-      // Flashcards selectors
-      $('#startNewBlock').addEventListener('click', startNewBlockFromSelectors);
-      $('#startReviewDue').addEventListener('click', startReviewDueSession);
+        function createNewProject() {
+            const title = document.getElementById('newProjectTitle').value.trim();
+            const deadline = document.getElementById('newProjectDeadline').value;
+            const wordsText = document.getElementById('newProjectWords').value.trim();
+            
+            if (!title || !deadline || !wordsText) {
+                alert('Please fill in all fields.');
+                return;
+            }
+            
+            const words = parseWordsText(wordsText);
+            if (words.length === 0) {
+                alert('Please enter at least one word.');
+                return;
+            }
+            
+            const project = createProject(title, DateUtils.parseDate(deadline), words);
+            appData.projects.push(project);
+            Storage.set(appData);
+            
+            hideNewProjectModal();
+            showProjectsSection();
+            renderDashboard();
+            renderToday();
+            updatePressureBar();
+        }
 
-      // Flashcards buttons
-      $('#btnFlip').addEventListener('click', flipCard);
-      $('#btnNext').addEventListener('click', nextCard);
-      $('#btnPrev').addEventListener('click', prevCard);
-      $('#btnRemember').addEventListener('click', onRemember);
-      $('#btnForgot').addEventListener('click', onForgot);
+        function parseWordsText(text) {
+            return text.split('\n')
+                .map(line => line.trim())
+                .filter(line => line)
+                .map(line => {
+                    const parts = line.split('|').map(p => p.trim());
+                    return {
+                        id: generateId('w'),
+                        term: parts[0] || '',
+                        meaning: parts[1] || '',
+                        example: parts[2] || '',
+                        tags: parts[3] ? parts[3].split(',').map(t => t.trim()) : [],
+                        srs: {
+                            intervalIndex: 0,
+                            nextReview: null,
+                            correctStreak: 0
+                        },
+                        status: 'new'
+                    };
+                })
+                .filter(word => word.term && word.meaning);
+        }
 
-      // Keyboard shortcuts
-      document.addEventListener('keydown', (e)=>{
-        const inFlash = !$('#view-flashcards').classList.contains('hidden');
-        if(!inFlash) return;
-        const typingActive = $('#typingMode').checked && document.activeElement === $('#typingInput');
-        if(typingActive) return; // don't hijack typing input
-        if(e.code==='Space'){ e.preventDefault(); flipCard(); }
-        else if(e.code==='Enter'){ e.preventDefault(); nextCard(); }
-        else if(e.key==='1'){ e.preventDefault(); onForgot(); }
-        else if(e.key==='2'){ e.preventDefault(); onRemember(); }
-      });
+        function showAddWordsModal() {
+            document.getElementById('addWordsModal').classList.remove('hidden');
+            document.getElementById('addWordsModal').classList.add('flex');
+        }
 
-      // Typing mode toggle
-      $('#typingMode').addEventListener('change', ()=> renderSessionCard());
-    }
+        function hideAddWordsModal() {
+            document.getElementById('addWordsModal').classList.add('hidden');
+            document.getElementById('addWordsModal').classList.remove('flex');
+            document.getElementById('addWordsText').value = '';
+        }
 
-    function renderAll(){
-      renderDeadlineBar();
-      renderDashboard();
-      renderToday();
-      initFlashcardsSelectors();
-      renderSettings();
-      showView('dashboard');
-    }
+        function addWordsToProject() {
+            const wordsText = document.getElementById('addWordsText').value.trim();
+            if (!wordsText || !currentProject) return;
+            
+            const newWords = parseWordsText(wordsText);
+            if (newWords.length === 0) {
+                alert('Please enter at least one word.');
+                return;
+            }
+            
+            currentProject.words.push(...newWords);
+            updateProjectProgress(currentProject);
+            
+            // Rebuild blocks and reschedule
+            autoSplitBlocks(currentProject);
+            autoScheduleBlocks(currentProject);
+            
+            Storage.set(appData);
+            hideAddWordsModal();
+            renderProject(currentProject.id);
+            renderDashboard();
+        }
 
-    // ==========================
-    // Init
-    // ==========================
-    load();
-    wireEvents();
-    renderAll();
-  </script>
-</body>
+        // Project actions
+        function openProject(projectId) {
+            renderProject(projectId);
+        }
+
+        function quickAddWords(projectId) {
+            const project = appData.projects.find(p => p.id === projectId);
+            if (!project) return;
+            
+            currentProject = project;
+            showAddWordsModal();
+        }
+
+        function rebuildBlocks() {
+            if (!currentProject) return;
+            
+            showConfirmModal(
+                'This will rebuild all blocks and may affect your learning schedule. Continue?',
+                () => {
+                    const blockSize = parseInt(document.getElementById('blockSizeInput').value) || appData.settings.defaultBlockSize;
+                    autoSplitBlocks(currentProject, blockSize);
+                    autoScheduleBlocks(currentProject);
+                    Storage.set(appData);
+                    renderProject(currentProject.id);
+                }
+            );
+        }
+
+        function deleteProject(projectId) {
+            const project = appData.projects.find(p => p.id === projectId);
+            if (!project) return;
+            
+            showConfirmModal(
+                `Delete project "${project.title}"? This cannot be undone.`,
+                () => {
+                    appData.projects = appData.projects.filter(p => p.id !== projectId);
+                    Storage.set(appData);
+                    
+                    document.querySelector('[data-view="project"]').style.display = 'none';
+                    switchView('dashboard');
+                    renderDashboard();
+                    renderToday();
+                    updatePressureBar();
+                    
+                    // Check if we need to show empty state
+                    if (appData.projects.length === 0) {
+                        showEmptyState();
+                    }
+                }
+            );
+        }
+
+        function exportProject(projectId) {
+            const project = appData.projects.find(p => p.id === projectId);
+            if (!project) return;
+            
+            const data = JSON.stringify(project, null, 2);
+            downloadFile(`${project.title}.json`, data, 'application/json');
+        }
+
+        function exportAll() {
+            const data = JSON.stringify(appData, null, 2);
+            downloadFile('vocab_app_backup.json', data, 'application/json');
+        }
+
+        function downloadFile(filename, content, type) {
+            const blob = new Blob([content], { type });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Import/Export
+        function showImportModal() {
+            const modal = document.getElementById('importModal');
+            const select = document.getElementById('importTarget');
+            
+            // Populate project options
+            select.innerHTML = '<option value="new">Create New Project</option>';
+            if (appData.projects) {
+                appData.projects.forEach(project => {
+                    select.innerHTML += `<option value="${project.id}">Merge into ${project.title}</option>`;
+                });
+            }
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function hideImportModal() {
+            document.getElementById('importModal').classList.add('hidden');
+            document.getElementById('importModal').classList.remove('flex');
+            document.getElementById('importText').value = '';
+            document.getElementById('importFile').value = '';
+        }
+
+        function handleFileImport(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                document.getElementById('importText').value = e.target.result;
+            };
+            reader.readAsText(file);
+        }
+
+        function importData() {
+            const text = document.getElementById('importText').value.trim();
+            const target = document.getElementById('importTarget').value;
+            
+            if (!text) {
+                alert('Please provide data to import.');
+                return;
+            }
+            
+            try {
+                const data = JSON.parse(text);
+                
+                if (target === 'new') {
+                    // Import as new project
+                    if (data.words && Array.isArray(data.words)) {
+                        // Single project import
+                        const newProject = {
+                            ...data,
+                            id: generateId('proj'),
+                            createdAt: new Date().toISOString(),
+                            updatedAt: new Date().toISOString()
+                        };
+                        
+                        // Regenerate word IDs to avoid conflicts
+                        newProject.words = newProject.words.map(word => ({
+                            ...word,
+                            id: generateId('w')
+                        }));
+                        
+                        appData.projects.push(newProject);
+                    } else if (data.projects && Array.isArray(data.projects)) {
+                        // Full app data import
+                        data.projects.forEach(project => {
+                            const newProject = {
+                                ...project,
+                                id: generateId('proj'),
+                                createdAt: new Date().toISOString(),
+                                updatedAt: new Date().toISOString()
+                            };
+                            
+                            newProject.words = newProject.words.map(word => ({
+                                ...word,
+                                id: generateId('w')
+                            }));
+                            
+                            appData.projects.push(newProject);
+                        });
+                    }
+                } else {
+                    // Merge into existing project
+                    const targetProject = appData.projects.find(p => p.id === target);
+                    if (targetProject && data.words) {
+                        const newWords = data.words.map(word => ({
+                            ...word,
+                            id: generateId('w')
+                        }));
+                        
+                        targetProject.words.push(...newWords);
+                        updateProjectProgress(targetProject);
+                        autoSplitBlocks(targetProject);
+                        autoScheduleBlocks(targetProject);
+                    }
+                }
+                
+                Storage.set(appData);
+                hideImportModal();
+                showProjectsSection();
+                renderDashboard();
+                renderToday();
+                alert('✅ Data imported successfully!');
+                
+            } catch (e) {
+                alert('❌ Invalid JSON data. Please check your input.');
+            }
+        }
+
+        // Settings
+        function loadSettings() {
+            document.getElementById('defaultBlockSize').value = appData.settings.defaultBlockSize;
+            document.getElementById('defaultSRS').value = appData.settings.defaultSRS.join(',');
+        }
+
+        function updateSettings() {
+            const blockSize = parseInt(document.getElementById('defaultBlockSize').value);
+            const srsText = document.getElementById('defaultSRS').value;
+            
+            if (blockSize >= 8 && blockSize <= 20) {
+                appData.settings.defaultBlockSize = blockSize;
+            }
+            
+            try {
+                const srsArray = srsText.split(',').map(n => parseInt(n.trim())).filter(n => n > 0);
+                if (srsArray.length > 0) {
+                    appData.settings.defaultSRS = srsArray;
+                }
+            } catch (e) {
+                // Invalid SRS format, keep current
+            }
+            
+            Storage.set(appData);
+        }
+
+        function resetData() {
+            showConfirmModal(
+                'This will delete ALL your data. This cannot be undone. Are you sure?',
+                () => {
+                    localStorage.removeItem(APP_CONFIG.STORAGE_KEY);
+                    location.reload();
+                }
+            );
+        }
+
+        // Confirm modal
+        let confirmCallback = null;
+
+        function showConfirmModal(message, callback) {
+            document.getElementById('confirmMessage').textContent = message;
+            confirmCallback = callback;
+            
+            document.getElementById('confirmModal').classList.remove('hidden');
+            document.getElementById('confirmModal').classList.add('flex');
+        }
+
+        function hideConfirmModal() {
+            document.getElementById('confirmModal').classList.add('hidden');
+            document.getElementById('confirmModal').classList.remove('flex');
+            confirmCallback = null;
+        }
+
+        function executeConfirmAction() {
+            if (confirmCallback) {
+                confirmCallback();
+            }
+            hideConfirmModal();
+        }
+
+        // Word editing (stub functions for future implementation)
+        function editWord(wordId) {
+            alert('Word editing feature coming soon! 🚧');
+        }
+
+        function deleteWord(wordId) {
+            if (!currentProject) return;
+            
+            showConfirmModal(
+                'Delete this word?',
+                () => {
+                    currentProject.words = currentProject.words.filter(w => w.id !== wordId);
+                    updateProjectProgress(currentProject);
+                    Storage.set(appData);
+                    renderProject(currentProject.id);
+                    renderDashboard();
+                }
+            );
+        }
+
+        // Initialize app when page loads
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'972937ee10c35f27',t:'MTc1NTc2OTc0NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
