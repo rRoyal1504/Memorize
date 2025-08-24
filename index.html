@@ -75,7 +75,6 @@
     #flashcardsView{filter:none!important;animation:fadeOnly .28s ease!important}
     @keyframes fadeOnly{from{opacity:0}to{opacity:1}}
 
-    /* ensure native select not clipped by glass panels */
     #flashcardsView { isolation:isolate; }
     #flashcardsView .flashcard-shell{
       position:relative;z-index:1;overflow:visible!important;
@@ -90,7 +89,6 @@
     .hero-illo::before{content:'';width:120px;height:120px;background:linear-gradient(135deg,#8b5cf6,#ec4899);border-radius:50%;opacity:.2;animation:float 4s ease-in-out infinite;grid-area:1/1}
     .hero-illo::after{content:'📚';font-size:4rem;animation:float 4s ease-in-out infinite .5s;grid-area:1/1;display:flex;align-items:center;justify-content:center}
 
-    /* prettier word + tag badges */
     #cardWord{font-weight:800;letter-spacing:.2px;background: linear-gradient(90deg,#ffd166,#ff7aa2,#6ad3ff);
     -webkit-background-clip:text;
     background-clip:text;
@@ -648,7 +646,6 @@
       document.getElementById('cardWord').textContent=w.term;
       document.getElementById('cardMeaning').textContent=w.meaning;
       document.getElementById('cardExample').textContent=w.example||'';
-      // clue/tags as badges
       const tags=(w.tags||[]);
       document.getElementById('cardClue').innerHTML = tags.length ? tags.map(t=>`<span class="tag-badge">${t}</span>`).join('') : '';
 
@@ -744,9 +741,7 @@
       document.getElementById('rememberBtn').addEventListener('click',()=>handleFlashcardAction(true));
       document.getElementById('forgotBtn').addEventListener('click',()=>handleFlashcardAction(false));
 
-      // NEW: flip by clicking the card
       document.querySelector('.flip-card').addEventListener('click', flipCard);
-      // Re-render when toggling typing mode
       document.getElementById('typingMode').addEventListener('change', renderFlashcard);
 
       document.getElementById('typingInput').addEventListener('keypress',e=>{if(e.key==='Enter')flipCard();});
@@ -796,7 +791,6 @@
           if(newCount>0){ sel.innerHTML+=`<option value="${p.id}:${b.id}">${p.title} - ${b.title} (${newCount} new words)</option>`; }
         });
       });
-      // Default to "New Words" and load immediately -> avoid "No cards available"
       sel.value='new';
       loadFlashcards();
     }
